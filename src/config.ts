@@ -5,7 +5,7 @@ const list = (v: string | undefined) => (v ?? '').split(',').map((s) => s.trim()
 export const cfg = {
   telegramToken: process.env.TELEGRAM_BOT_TOKEN ?? '',
   // Wer /start <code> schickt, wird angemeldet. Ohne Code nimmt der Bot niemanden an.
-  inviteCode: process.env.INVITE_CODE ?? '',
+  inviteCode: (process.env.INVITE_CODE ?? '').trim().replace(/^["']|["']$/g, ''),
   anthropicKey: process.env.ANTHROPIC_API_KEY ?? '',
   scoreModel: process.env.SCORE_MODEL ?? 'claude-haiku-4-5-20251001',
   letterModel: process.env.LETTER_MODEL ?? 'claude-sonnet-5-5',

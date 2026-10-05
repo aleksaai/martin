@@ -147,7 +147,7 @@ async function handle(u: any, store: Store, triggerRun: () => Promise<string>) {
   const known = subs.some((s) => s.chat_id === chatId);
 
   if (text.startsWith('/start')) {
-    const code = text.split(/\s+/)[1] ?? '';
+    const code = (text.split(/\s+/)[1] ?? '').trim();
     if (known) { await tg('sendMessage', { chat_id: chatId, text: HELP }); return; }
     if (!cfg.inviteCode || code !== cfg.inviteCode) {
       await tg('sendMessage', { chat_id: chatId, text: 'Dieser Bot ist privat. Bitte nutze den Einladungslink.' });

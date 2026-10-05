@@ -1,5 +1,10 @@
 # HANDOFF: Martins Jobradar (Stand 2026-10-05 abends, Mac mini)
 
+### Was wurde in dieser Session gemacht (2026-10-05)
+- Projekt von null gebaut, Repo `aleksaai/martin`, Railway-Projekt „martin“ mit Postgres, Bot bei BotFather angelegt, Variablen gesetzt, BA-Suche live.
+- Aleksa als erster Abonnent angemeldet (14 Treffer bekommen). Fixes live: Einladungscode tolerant gegen Leerzeichen, neue Abonnenten bekommen Treffer der letzten 14 Tage nachgeliefert.
+- Ausbau Stufe 1–3 geschrieben, liegt ungetestet auf Branch `ausbau` (Details unten). Session endete vor den Tests, weil Aleksa vom Mac mini weg musste.
+
 ## Was live läuft (Branch `main`, Railway-Projekt „martin“)
 - Bot (Telegram, Name „Adolf“) sucht 3x täglich (7, 12, 17 Uhr Berlin) Werkstudentenstellen, **nur über die BA-Jobbörse**.
   Haiku bewertet gegen `data/profile.md`, Treffer ab 6/10 kommen mit 👍 / 👎 / ✍️ Anschreiben (nur Text).

@@ -1,27 +1,13 @@
 // Telegram per Long Polling: kein Webhook, keine öffentliche Adresse nötig.
+import { cancelForm, handleFormReply, startForm, submitForm } from './apply.ts';
+import { handleLetterReply, handleOutcome, listApplications, markApplied, prepareApplication } from './bewerbung.ts';
 import { cfg } from './config.ts';
-import { writeLetter } from './llm.ts';
 import type { Store } from './store.ts';
+import { esc, tg } from './tg.ts';
 import type { StoredJob } from './types.ts';
 
-const API = `https://api.telegram.org/bot${cfg.telegramToken}`;
-
-async function tg(method: string, body: Record<string, unknown>): Promise<any> {
-  const res = await fetch(`${API}/${method}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-    signal: AbortSignal.timeout(70_000),
-  });
-  const json = await res.json();
-  if (!json.ok) throw new Error(`Telegram ${method}: ${json.description}`);
-  return json.result;
-}
-
-const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-
 // callback_data darf höchstens 64 Bytes haben, Job-IDs sind länger: kurze Nummer statt ID
-async function shortRef(store: Store, jobId: string): Promise<string> {
+export async function shortRef(store: Store, jobId: string): Promise<string> {
   const n = Number((await store.kvGet('ref:next')) ?? '1');
   await store.kvSet('ref:next', String(n + 1));
   await store.kvSet(`ref:${n}`, jobId);
@@ -50,7 +36,7 @@ async function sendCard(chatId: string, j: StoredJob, ref: string) {
     reply_markup: { inline_keyboard: [[
       { text: '👍 Passt', callback_data: `gut:${ref}` },
       { text: '👎 Passt nicht', callback_data: `schlecht:${ref}` },
-      { text: '✍️ Anschreiben', callback_data: `brief:${ref}` },
+      { text: '📨 Bewerben', callback_data: `bew:${ref}` },
     ]] },
   }).catch((e) => console.error(e.message));
 }
@@ -85,8 +71,11 @@ export async function broadcast(store: Store, text: string) {
 
 const HELP = [
   'Ich suche mehrmals am Tag nach Werkstudentenstellen für dich: remote in Deutschland oder vor Ort/hybrid rund um Köln.',
-  'Neue passende Stellen schicke ich dir sofort. Mit 👍/👎 lerne ich, was dir gefällt. ✍️ schreibt dir einen Anschreiben-Entwurf.',
+  'Neue passende Stellen schicke ich dir sofort. Mit 👍/👎 lerne ich, was dir gefällt.',
+  '📨 Bewerben schreibt dir ein Anschreiben (Text + PDF), schickt deinen Lebenslauf mit und füllt auf Wunsch das Bewerbungsformular aus. Abgeschickt wird nur, wenn du auf Absenden tippst.',
+  'Antwortest du auf ein Anschreiben mit deiner eigenen Fassung, lerne ich deinen Stil.',
   '',
+  '/bewerbungen  Stand deiner Bewerbungen',
   '/suche  jetzt sofort suchen',
   '/status  was bisher gefunden wurde',
   '/pause  keine Meldungen mehr',
@@ -102,7 +91,8 @@ export function startBot(store: Store, triggerRun: () => Promise<string>) {
         const updates: any[] = await tg('getUpdates', { offset, timeout: 50, allowed_updates: ['message', 'callback_query'] });
         for (const u of updates) {
           offset = u.update_id + 1;
-          await handle(u, store, triggerRun).catch((e) => console.error('Update-Fehler:', e.message));
+          // Nicht abwarten: Anschreiben und Formulare dauern, andere Klicks sollen trotzdem sofort gehen
+          void handle(u, store, triggerRun).catch((e) => console.error('Update-Fehler:', e.message));
         }
       } catch (e) {
         console.error('Polling:', (e as Error).message);
@@ -114,6 +104,7 @@ export function startBot(store: Store, triggerRun: () => Promise<string>) {
   void tg('setMyCommands', { commands: [
     { command: 'suche', description: 'Jetzt sofort suchen' },
     { command: 'status', description: 'Was bisher gefunden wurde' },
+    { command: 'bewerbungen', description: 'Stand deiner Bewerbungen' },
     { command: 'pause', description: 'Keine Meldungen mehr' },
     { command: 'weiter', description: 'Meldungen wieder an' },
   ] }).catch(() => {});
@@ -126,25 +117,45 @@ async function handle(u: any, store: Store, triggerRun: () => Promise<string>) {
     const chatId = String(q.message?.chat?.id);
     if (!subs.some((s) => s.chat_id === chatId)) return;
     const [action, ref] = String(q.data).split(':');
-    const jobId = await store.kvGet(`ref:${ref}`);
-    const job = jobId ? await store.getJob(jobId) : null;
-    if (!job) { await tg('answerCallbackQuery', { callback_query_id: q.id, text: 'Stelle nicht mehr gefunden.' }); return; }
-    if (action === 'gut' || action === 'schlecht') {
-      await store.setFeedback(job.id, action);
-      await tg('answerCallbackQuery', { callback_query_id: q.id, text: action === 'gut' ? 'Gemerkt, mehr davon.' : 'Gemerkt, weniger davon.' });
+    const answer = (text?: string) => tg('answerCallbackQuery', { callback_query_id: q.id, ...(text ? { text } : {}) }).catch(() => {});
+    if (action === 'send' || action === 'stop') {
+      await answer();
+      if (action === 'stop') { cancelForm(ref); await tg('sendMessage', { chat_id: chatId, text: 'Abgebrochen, nichts wurde abgeschickt.' }); return; }
+      const jobId = await store.kvGet(`ref:${ref}`);
+      const result = await submitForm(store, chatId, ref);
+      const job = jobId ? await store.getJob(jobId) : null;
+      if (result === 'ok' && job) await markApplied(store, chatId, job, ref);
+      else if (result === 'unklar') await tg('sendMessage', { chat_id: chatId, text: 'Wenn es geklappt hat, tipp hier:', reply_markup: { inline_keyboard: [[{ text: '✅ Ich habe mich beworben', callback_data: `ok:${ref}` }]] } });
       return;
     }
-    if (action === 'brief') {
-      await tg('answerCallbackQuery', { callback_query_id: q.id, text: 'Schreibe den Entwurf, dauert etwa 20 Sekunden.' });
-      await tg('sendChatAction', { chat_id: chatId, action: 'typing' });
-      const letter = await writeLetter(job);
-      await tg('sendMessage', {
-        chat_id: chatId,
-        text: `✍️ Entwurf für <b>${esc(job.title)}</b> bei ${esc(job.company)}:\n\n${esc(letter)}\n\n<i>Bitte prüfen und die Platzhalter in [Klammern] füllen.</i>`,
-        parse_mode: 'HTML',
-        reply_parameters: { message_id: q.message.message_id },
-      });
-      await store.setFeedback(job.id, 'gut');
+    const jobId = await store.kvGet(`ref:${ref}`);
+    const job = jobId ? await store.getJob(jobId) : null;
+    if (!job) { await answer('Stelle nicht mehr gefunden.'); return; }
+    switch (action) {
+      case 'gut':
+      case 'schlecht':
+        await store.setFeedback(job.id, action);
+        await answer(action === 'gut' ? 'Gemerkt, mehr davon.' : 'Gemerkt, weniger davon.');
+        return;
+      case 'bew':
+      case 'brief': // alte Knöpfe aus den ersten Meldungen
+        await answer('Bereite die Bewerbung vor, dauert etwa 30 Sekunden.');
+        await prepareApplication(store, chatId, job, ref);
+        return;
+      case 'form':
+        await answer();
+        await startForm(store, chatId, job, ref);
+        return;
+      case 'ok':
+        await answer();
+        await markApplied(store, chatId, job, ref);
+        return;
+      case 'ein':
+      case 'abs':
+      case 'nix':
+        await answer();
+        await handleOutcome(store, chatId, job, action);
+        return;
     }
     return;
   }
@@ -172,7 +183,15 @@ async function handle(u: any, store: Store, triggerRun: () => Promise<string>) {
   }
   if (!known) return;
 
-  if (text.startsWith('/suche')) {
+  const replyTo = m.reply_to_message?.message_id;
+  if (replyTo && !text.startsWith('/')) {
+    if (await handleLetterReply(store, chatId, replyTo, text)) return;
+    if (await handleFormReply(store, chatId, replyTo, text)) return;
+  }
+
+  if (text.startsWith('/bewerbungen')) {
+    await tg('sendMessage', { chat_id: chatId, text: await listApplications(store) });
+  } else if (text.startsWith('/suche')) {
     await tg('sendMessage', { chat_id: chatId, text: 'Ich suche jetzt, das dauert ein paar Minuten.' });
     await tg('sendMessage', { chat_id: chatId, text: await triggerRun() });
   } else if (text.startsWith('/status')) {

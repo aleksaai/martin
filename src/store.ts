@@ -7,6 +7,15 @@ import type { StoredJob } from './types.ts';
 
 export interface Subscriber { chat_id: string; name: string | null; paused: boolean }
 
+export interface Application {
+  job_id: string;
+  status: 'entwurf' | 'beworben' | 'einladung' | 'absage' | 'zusage';
+  letter: string | null;
+  applied_at: string | null;
+  followup_at: string | null;
+  followups: number;
+}
+
 export interface Store {
   init(): Promise<void>;
   known(id: string, key: string): Promise<boolean>;
@@ -21,6 +30,12 @@ export interface Store {
   subscribers(): Promise<Subscriber[]>;
   addSubscriber(chatId: string, name: string | null): Promise<void>;
   setPaused(chatId: string, paused: boolean): Promise<void>;
+  getApplication(jobId: string): Promise<Application | null>;
+  upsertApplication(a: Partial<Application> & { job_id: string }): Promise<void>;
+  dueFollowups(): Promise<Application[]>;
+  applicationsByStatus(): Promise<Record<string, number>>;
+  addLetterExample(text: string): Promise<void>;
+  letterExamples(n: number): Promise<string[]>;
   kvGet(key: string): Promise<string | null>;
   kvSet(key: string, value: string): Promise<void>;
   stats(): Promise<Record<string, number>>;
@@ -43,6 +58,11 @@ class PgStore implements Store {
       create index if not exists jobs_pending on jobs (status, notified_at);
       create table if not exists subscribers (chat_id text primary key, name text, paused boolean not null default false, created_at timestamptz not null default now());
       create table if not exists kv (key text primary key, value text not null);
+      create table if not exists applications (
+        job_id text primary key, status text not null default 'entwurf', letter text,
+        applied_at timestamptz, followup_at timestamptz, followups int not null default 0
+      );
+      create table if not exists letter_examples (id serial primary key, text text not null, created_at timestamptz not null default now());
     `);
   }
   async known(id: string, key: string) {
@@ -93,6 +113,32 @@ class PgStore implements Store {
   async setPaused(chatId: string, paused: boolean) {
     await this.pool.query('update subscribers set paused = $2 where chat_id = $1', [chatId, paused]);
   }
+  async getApplication(jobId: string) {
+    const r = await this.pool.query('select * from applications where job_id = $1', [jobId]);
+    return (r.rows[0] as Application) ?? null;
+  }
+  async upsertApplication(a: Partial<Application> & { job_id: string }) {
+    const cur = (await this.getApplication(a.job_id)) ?? { job_id: a.job_id, status: 'entwurf', letter: null, applied_at: null, followup_at: null, followups: 0 };
+    const n = { ...cur, ...a };
+    await this.pool.query(
+      `insert into applications (job_id, status, letter, applied_at, followup_at, followups) values ($1,$2,$3,$4,$5,$6)
+       on conflict (job_id) do update set status = $2, letter = $3, applied_at = $4, followup_at = $5, followups = $6`,
+      [n.job_id, n.status, n.letter, n.applied_at, n.followup_at, n.followups]);
+  }
+  async dueFollowups() {
+    return (await this.pool.query(`select * from applications where status = 'beworben' and followup_at <= now()`)).rows as Application[];
+  }
+  async applicationsByStatus() {
+    const out: Record<string, number> = {};
+    for (const r of (await this.pool.query('select status, count(*)::int as n from applications group by status')).rows) out[r.status] = r.n;
+    return out;
+  }
+  async addLetterExample(text: string) {
+    await this.pool.query('insert into letter_examples (text) values ($1)', [text]);
+  }
+  async letterExamples(n: number) {
+    return (await this.pool.query('select text from letter_examples order by id desc limit $1', [n])).rows.map((r) => r.text as string);
+  }
   async kvGet(key: string) {
     const r = await this.pool.query('select value from kv where key = $1', [key]);
     return r.rows[0]?.value ?? null;
@@ -110,7 +156,7 @@ class PgStore implements Store {
   }
 }
 
-interface FileData { jobs: Record<string, StoredJob & { dedupe_key: string }>; subscribers: Subscriber[]; kv: Record<string, string> }
+interface FileData { jobs: Record<string, StoredJob & { dedupe_key: string }>; subscribers: Subscriber[]; kv: Record<string, string>; applications?: Record<string, Application>; letters?: string[] }
 
 class FileStore implements Store {
   private data: FileData = { jobs: {}, subscribers: [], kv: {} };
@@ -160,6 +206,23 @@ class FileStore implements Store {
     const s = this.data.subscribers.find((x) => x.chat_id === chatId);
     if (s) { s.paused = paused; await this.flush(); }
   }
+  async getApplication(jobId: string) { return this.data.applications?.[jobId] ?? null; }
+  async upsertApplication(a: Partial<Application> & { job_id: string }) {
+    this.data.applications ??= {};
+    const cur = this.data.applications[a.job_id] ?? { job_id: a.job_id, status: 'entwurf', letter: null, applied_at: null, followup_at: null, followups: 0 };
+    this.data.applications[a.job_id] = { ...cur, ...a } as Application;
+    await this.flush();
+  }
+  async dueFollowups() {
+    return Object.values(this.data.applications ?? {}).filter((a) => a.status === 'beworben' && a.followup_at && Date.parse(a.followup_at) <= Date.now());
+  }
+  async applicationsByStatus() {
+    const out: Record<string, number> = {};
+    for (const a of Object.values(this.data.applications ?? {})) out[a.status] = (out[a.status] ?? 0) + 1;
+    return out;
+  }
+  async addLetterExample(text: string) { (this.data.letters ??= []).push(text); await this.flush(); }
+  async letterExamples(n: number) { return (this.data.letters ?? []).slice(-n).reverse(); }
   async kvGet(key: string) { return this.data.kv[key] ?? null; }
   async kvSet(key: string, value: string) { this.data.kv[key] = value; await this.flush(); }
   async stats() {

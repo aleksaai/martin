@@ -157,6 +157,123 @@ async function workday(c: Company): Promise<RawJob[]> {
   return [...out.values()];
 }
 
+
+const rssParser = new XMLParser({ ignoreAttributes: false, isArray: (n) => ['item', 'tt:location'].includes(n) });
+
+// RSS: SuccessFactors (gefiltert per keywords, sonst nur die 20 neuesten), Teamtailor, Talentsoft, eigene Feeds
+async function rss(c: Company): Promise<RawJob[]> {
+  const urls = c.ats.type === 'successfactors_rss'
+    ? ['Werkstudent', 'Student', 'studentische', 'Working Student'].map((k) => c.ats.feed_url!.replace(/keywords=[^&]*/, `keywords=${encodeURIComponent(k)}`))
+    : [c.ats.feed_url!];
+  const out = new Map<string, RawJob>();
+  for (const url of urls) {
+    const doc = rssParser.parse(await fetchText(url));
+    for (const it of doc?.rss?.channel?.item ?? []) {
+      let title = String(it.title ?? '');
+      let place = '';
+      // SuccessFactors: "Titel (Ort, Land, PLZ)"
+      const m = c.ats.type === 'successfactors_rss' ? title.match(/^(.*)\(([^()]*)\)\s*$/) : null;
+      if (m) { title = m[1].trim(); place = m[2]; }
+      const tt = (it['tt:locations']?.['tt:location'] ?? []).map((l: any) => [l['tt:city'], l['tt:country']].filter(Boolean).join(', '));
+      const link = String(it.link ?? '');
+      out.set(link, {
+        id: `${c.ats.type}:${c.name}:${link}`,
+        source: c.ats.type,
+        company: c.name,
+        title,
+        locations: (tt.length ? tt : place ? [place] : c.city ? [c.city] : []).map((label: string) => ({ label })),
+        mode: it.remoteStatus === 'fully' ? 'remote' : it.remoteStatus === 'hybrid' ? 'hybrid' : modeFrom(title, place),
+        url: link,
+        description: stripHtml(String(it.description ?? '')),
+        published: it.pubDate,
+      });
+    }
+  }
+  return [...out.values()];
+}
+
+async function workable(c: Company): Promise<RawJob[]> {
+  const r = await fetchJson<any>(c.ats.feed_url ?? `https://apply.workable.com/api/v1/widget/accounts/${c.ats.slug}`);
+  return (r.jobs ?? []).map((j: any) => ({
+    id: `workable:${c.ats.slug}:${j.shortcode}`,
+    source: 'workable',
+    company: c.name,
+    title: j.title,
+    locations: (j.locations?.length ? j.locations : [j]).map((l: any) => ({ label: [l.city, l.country].filter(Boolean).join(', ') })),
+    mode: j.telecommuting ? 'remote' : modeFrom(j.title),
+    url: j.url ?? j.application_url,
+    published: j.published_on,
+  }));
+}
+
+async function join(c: Company): Promise<RawJob[]> {
+  const html = await fetchText(c.ats.feed_url ?? `https://join.com/companies/${c.ats.slug}`);
+  const m = html.match(/<script id="__NEXT_DATA__"[^>]*>([\s\S]*?)<\/script>/);
+  if (!m) return [];
+  const items: any[] = JSON.parse(m[1])?.props?.pageProps?.initialState?.jobs?.items ?? [];
+  return items.map((j) => ({
+    id: `join:${c.ats.slug}:${j.idParam ?? j.id}`,
+    source: 'join',
+    company: c.name,
+    title: j.title,
+    locations: loc(j.city?.cityName),
+    mode: /remote/i.test(j.workplaceType ?? '') ? 'remote' : /hybrid/i.test(j.workplaceType ?? '') ? 'hybrid' : modeFrom(j.title),
+    url: `https://join.com/companies/${c.ats.slug}/${j.idParam ?? j.id}`,
+    published: j.createdAt,
+  }));
+}
+
+async function dvinci(c: Company): Promise<RawJob[]> {
+  const r = await fetchJson<any[]>(c.ats.feed_url!);
+  return r.map((j) => {
+    const places = (j.jobOpening?.locations ?? j.locations ?? []).map((l: any) => l.city ?? l.name ?? String(l)).filter(Boolean);
+    return {
+      id: `dvinci:${c.ats.slug}:${j.id}`,
+      source: 'dvinci',
+      company: c.name,
+      title: j.position ?? j.jobOpening?.name ?? '',
+      locations: (places.length ? places : c.city ? [c.city] : []).map((label: string) => ({ label })),
+      mode: modeFrom(j.position, places.join(' ')),
+      url: j.jobPublicationURL,
+      description: stripHtml([j.introduction, j.tasks, j.profile].filter(Boolean).join('\n')),
+      published: j.startDate,
+    };
+  });
+}
+
+async function softgarden(c: Company): Promise<RawJob[]> {
+  const r = await fetchJson<any>(c.ats.feed_url!);
+  return (r.dataFeedElement ?? []).map((e: any) => {
+    const j = e.item ?? e;
+    const locs = [j.jobLocation].flat().filter(Boolean).map((l: any) => l?.address?.addressLocality ?? '').filter(Boolean);
+    return {
+      id: `softgarden:${c.name}:${j.url}`,
+      source: 'softgarden',
+      company: c.name,
+      title: j.title,
+      locations: locs.map((label: string) => ({ label })),
+      mode: j.jobLocationType === 'TELECOMMUTE' ? 'remote' : modeFrom(j.title),
+      url: j.url,
+      description: stripHtml(j.description),
+      published: j.datePosted,
+    };
+  });
+}
+
+async function oracle(c: Company): Promise<RawJob[]> {
+  const r = await fetchJson<any>(c.ats.feed_url!);
+  return (r.items?.[0]?.requisitionList ?? []).map((j: any) => ({
+    id: `oracle:${c.ats.host}:${j.Id}`,
+    source: 'oracle_hcm',
+    company: c.name,
+    title: j.Title,
+    locations: loc(j.PrimaryLocation),
+    mode: /remote/i.test(j.WorkplaceTypeCode ?? '') ? 'remote' : /hybrid/i.test(j.WorkplaceTypeCode ?? '') ? 'hybrid' : 'unbekannt',
+    url: `https://${c.ats.host}/hcmUI/CandidateExperience/de/sites/${c.ats.site}/job/${j.Id}`,
+    published: j.PostedDate,
+  }));
+}
+
 /** Beschreibung für Quellen nachladen, deren Liste keine enthält. */
 export async function enrichAts(job: RawJob, c: Company): Promise<RawJob> {
   try {
@@ -188,6 +305,12 @@ export async function listCompany(c: Company): Promise<RawJob[]> {
     case 'smartrecruiters': return smartrecruiters(c);
     case 'ashby': return ashby(c);
     case 'workday': return workday(c);
+    case 'successfactors_rss': case 'teamtailor': case 'rss': return rss(c);
+    case 'workable': return workable(c);
+    case 'join': return join(c);
+    case 'dvinci': return dvinci(c);
+    case 'softgarden': return softgarden(c);
+    case 'oracle_hcm': return oracle(c);
     default: return [];
   }
 }

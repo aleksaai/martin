@@ -5,17 +5,30 @@ import { dedupeKey, placeCheck, studentCheck } from './filter.ts';
 import { scoreJob } from './llm.ts';
 import { enrichBa, listBa } from './sources/ba.ts';
 import { enrichAts, listCompany } from './sources/ats.ts';
+import { enrichHtml, listHtml } from './sources/html.ts';
 import type { Store } from './store.ts';
 import type { Company, RawJob, StoredJob } from './types.ts';
 
 // Nur echte Vollremote-Formulierungen. "Homeoffice möglich" heißt meist hybrid und reicht bei weit entfernten Stellen nicht.
 const REMOTE_HINT = /(100\s?%|voll(ständig)?|komplett|ausschließlich|rein|full(y)?)[\s-]*(remote|mobil|home ?office)|remote[\s-]*(only|first)|ortsunabhängig|deutschlandweit remote|bundesweit remote|remote (aus|in) (ganz )?deutschland|\(remote\)|- remote\b|\bremote\)?$/i;
 
+// Ein hängender Feed darf nie den ganzen Lauf blockieren
+function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
+  return Promise.race([p, new Promise<T>((_, rej) => setTimeout(() => rej(new Error(`Zeitüberschreitung nach ${ms / 1000} s`)), ms))]);
+}
+
+async function enrich(job: RawJob, company?: Company): Promise<RawJob> {
+  if (job.source === 'ba') return enrichBa(job);
+  if (job.source === 'html') return enrichHtml(job);
+  return company ? enrichAts(job, company) : job;
+}
+
 export function loadCompanies(): Company[] {
   const path = new URL('../data/companies.json', import.meta.url);
   if (!existsSync(path)) return [];
   const all = JSON.parse(readFileSync(path, 'utf8')) as Company[];
-  return all.filter((c) => c.verified !== false && c.ats?.type && c.ats.type !== 'html');
+  // html-Seiten zählen auch ohne verifizierten Feed, solange eine URL da ist
+  return all.filter((c) => c.ats?.type && (c.ats.type === 'html' ? !!(c.ats.feed_url ?? (c as any).careers_url) : c.verified !== false));
 }
 
 export interface RunReport { fetched: number; fresh: number; scored: number; matches: number; errors: string[]; bySource: Record<string, number> }
@@ -39,7 +52,7 @@ export async function runOnce(store: Store, log = console.log): Promise<RunRepor
   for (let i = 0; i < companies.length; i += 6) {
     await Promise.all(companies.slice(i, i + 6).map(async (c) => {
       try {
-        const list = await listCompany(c);
+        const list = await withTimeout(c.ats.type === 'html' ? listHtml(c, store) : listCompany(c), 90_000);
         jobs.push(...list.map((job) => ({ job, company: c })));
         report.bySource[c.ats.type] = (report.bySource[c.ats.type] ?? 0) + list.length;
       } catch (e) {
@@ -79,14 +92,14 @@ export async function runOnce(store: Store, log = console.log): Promise<RunRepor
     let place = await placeCheck(job, store);
     // Zu weit: vielleicht trotzdem remote. Beschreibung holen und nachsehen.
     if (!place.ok && place.reason?.startsWith('zu weit')) {
-      job = job.source === 'ba' ? await enrichBa(job) : company ? await enrichAts(job, company) : job;
+      job = await enrich(job, company);
       if (REMOTE_HINT.test(`${job.title} ${job.description ?? ''}`)) place = { ...place, ok: true };
     }
     if (!place.ok) {
       await store.saveJob({ ...base, distance_km: place.distance, skip_reason: place.reason ?? 'Ort' });
       return;
     }
-    if (!job.description) job = job.source === 'ba' ? await enrichBa(job) : company ? await enrichAts(job, company) : job;
+    if (!job.description) job = await enrich(job, company);
 
     const placeText = place.distance !== null ? `${place.label} (${place.distance} km von Erftstadt)` : place.label;
     try {

@@ -1,0 +1,3589 @@
+[
+ {
+  "name": "CMS Hasche Sigle",
+  "category": "kanzlei",
+  "city": "Köln/Düsseldorf",
+  "remote_friendly": false,
+  "careers_url": "https://cms.law/de/deu/stellenausschreibungen/karrieremoeglichkeiten",
+  "ats": {
+   "type": "html",
+   "feed_url": "https://cms.law/de/deu/stellenausschreibungen/karrieremoeglichkeiten"
+  },
+  "verified": false,
+  "job_count": null,
+  "notes": "Eigene Stellenseite auf cms.law; recruitee 'cms' gehört zu CMS Niederlande, nicht verwenden."
+ },
+ {
+  "name": "Freshfields",
+  "category": "kanzlei",
+  "city": "Düsseldorf/Köln",
+  "remote_friendly": false,
+  "careers_url": "https://freshfields.wd3.myworkdayjobs.com/FBD_101",
+  "ats": {
+   "type": "workday",
+   "slug": "freshfields",
+   "host": "freshfields.wd3.myworkdayjobs.com",
+   "site": "FBD_101",
+   "feed_url": "https://freshfields.wd3.myworkdayjobs.com/wday/cxs/freshfields/FBD_101/jobs",
+   "method": "POST"
+  },
+  "verified": true,
+  "job_count": 177,
+  "notes": "Workday-Site FBD_101 (Deutschland/Europa)."
+ },
+ {
+  "name": "Hengeler Mueller",
+  "category": "kanzlei",
+  "city": "Düsseldorf",
+  "remote_friendly": false,
+  "careers_url": "https://hengeler.wd502.myworkdayjobs.com/HM-Careers-Legal",
+  "ats": {
+   "type": "workday",
+   "slug": "hengeler",
+   "host": "hengeler.wd502.myworkdayjobs.com",
+   "site": "HM-Careers-Legal",
+   "feed_url": "https://hengeler.wd502.myworkdayjobs.com/wday/cxs/hengeler/HM-Careers-Legal/jobs",
+   "method": "POST"
+  },
+  "verified": true,
+  "job_count": 66,
+  "notes": "Zweite Site für Business Services: HM-Careers-Business-Services (gleicher Host/Tenant). Legal Tech Center mit juristischen Mitarbeitern."
+ },
+ {
+  "name": "Gleiss Lutz",
+  "category": "kanzlei",
+  "city": "Düsseldorf",
+  "remote_friendly": false,
+  "careers_url": "https://karriere-bewerbung.gleisslutz.com/",
+  "ats": {
+   "type": "html",
+   "feed_url": "https://karriere-bewerbung.gleisslutz.com/"
+  },
+  "verified": false,
+  "job_count": null,
+  "notes": "rexx systems Jobportal (Stellen als *-de-jNNN.html Links)."
+ },
+ {
+  "name": "Linklaters",
+  "category": "kanzlei",
+  "city": "Düsseldorf",
+  "remote_friendly": false,
+  "careers_url": "https://linklaters.wd3.myworkdayjobs.com/DE_Linklaters",
+  "ats": {
+   "type": "workday",
+   "slug": "linklaters",
+   "host": "linklaters.wd3.myworkdayjobs.com",
+   "site": "DE_Linklaters",
+   "feed_url": "https://linklaters.wd3.myworkdayjobs.com/wday/cxs/linklaters/DE_Linklaters/jobs",
+   "method": "POST"
+  },
+  "verified": true,
+  "job_count": 73,
+  "notes": "Eigene deutsche Workday-Site."
+ },
+ {
+  "name": "Clifford Chance",
+  "category": "kanzlei",
+  "city": "Düsseldorf",
+  "remote_friendly": false,
+  "careers_url": "https://careers.smartrecruiters.com/CliffordChance",
+  "ats": {
+   "type": "smartrecruiters",
+   "slug": "CliffordChance",
+   "feed_url": "https://api.smartrecruiters.com/v1/companies/CliffordChance/postings"
+  },
+  "verified": true,
+  "job_count": 193,
+  "notes": "Global, nach location.city=Düsseldorf bzw. country=de filtern."
+ },
+ {
+  "name": "A&O Shearman",
+  "category": "kanzlei",
+  "city": "Düsseldorf",
+  "remote_friendly": false,
+  "careers_url": "https://careers.aoshearman.com/en/experienced-careers",
+  "ats": {
+   "type": "html",
+   "feed_url": "https://careers.aoshearman.com/en/experienced-careers"
+  },
+  "verified": false,
+  "job_count": null,
+  "notes": "Eigene Karriereseite, kein öffentlicher Feed gefunden."
+ },
+ {
+  "name": "Hogan Lovells",
+  "category": "kanzlei",
+  "city": "Düsseldorf",
+  "remote_friendly": false,
+  "careers_url": "https://hoganlovells.wd3.myworkdayjobs.com/Search",
+  "ats": {
+   "type": "workday",
+   "slug": "hoganlovells",
+   "host": "hoganlovells.wd3.myworkdayjobs.com",
+   "site": "Search",
+   "feed_url": "https://hoganlovells.wd3.myworkdayjobs.com/wday/cxs/hoganlovells/Search/jobs",
+   "method": "POST"
+  },
+  "verified": true,
+  "job_count": 234,
+  "notes": "Global; searchText z.B. 'Düsseldorf' oder 'Werkstudent' nutzen."
+ },
+ {
+  "name": "Noerr",
+  "category": "kanzlei",
+  "city": "Düsseldorf",
+  "remote_friendly": false,
+  "careers_url": "https://noerr.wd3.myworkdayjobs.com/Careers_Legal_Tax_Advisory",
+  "ats": {
+   "type": "workday",
+   "slug": "noerr",
+   "host": "noerr.wd3.myworkdayjobs.com",
+   "site": "Careers_Legal_Tax_Advisory",
+   "feed_url": "https://noerr.wd3.myworkdayjobs.com/wday/cxs/noerr/Careers_Legal_Tax_Advisory/jobs",
+   "method": "POST"
+  },
+  "verified": true,
+  "job_count": 62,
+  "notes": "Zweite Site: Careers_Business_Professionals."
+ },
+ {
+  "name": "Luther Rechtsanwaltsgesellschaft",
+  "category": "kanzlei",
+  "city": "Köln/Düsseldorf",
+  "remote_friendly": false,
+  "careers_url": "https://jobs.luther-lawfirm.com",
+  "ats": {
+   "type": "html",
+   "feed_url": "https://jobs.luther-lawfirm.com"
+  },
+  "verified": false,
+  "job_count": null,
+  "notes": "GuideCom-Jobportal (Links /jobportal/luther/viewAusschreibung/*.html). Hauptsitz Köln."
+ },
+ {
+  "name": "Heuking",
+  "category": "kanzlei",
+  "city": "Düsseldorf/Köln",
+  "remote_friendly": false,
+  "careers_url": "https://www.heuking.de/de/karriere/stellenangebote.html",
+  "ats": {
+   "type": "html",
+   "feed_url": "https://www.heuking.de/de/karriere/stellenangebote.html"
+  },
+  "verified": false,
+  "job_count": null,
+  "notes": "Eigene TYPO3-Seite; personio 'heuking' gehört zu einer anderen Firma."
+ },
+ {
+  "name": "Oppenhoff",
+  "category": "kanzlei",
+  "city": "Köln",
+  "remote_friendly": false,
+  "careers_url": "https://www.oppenhoff.eu/de/karriere/stellenanzeigen/",
+  "ats": {
+   "type": "html",
+   "feed_url": "https://www.oppenhoff.eu/de/karriere/stellenanzeigen/"
+  },
+  "verified": false,
+  "job_count": null,
+  "notes": "Eigene TYPO3-Seite."
+ },
+ {
+  "name": "Flick Gocke Schaumburg",
+  "category": "kanzlei",
+  "city": "Bonn",
+  "remote_friendly": false,
+  "careers_url": "https://www.fgs.de/karriere",
+  "ats": {
+   "type": "html",
+   "feed_url": "https://www.fgs.de/karriere"
+  },
+  "verified": false,
+  "job_count": null,
+  "notes": "Eigene TYPO3-Seite, Hauptsitz Bonn."
+ },
+ {
+  "name": "GÖRG",
+  "category": "kanzlei",
+  "city": "Köln",
+  "remote_friendly": false,
+  "careers_url": "https://goerg-partnerschaft-von-rechtsanwaelten.jobs.personio.de",
+  "ats": {
+   "type": "personio",
+   "slug": "goerg-partnerschaft-von-rechtsanwaelten",
+   "feed_url": "https://goerg-partnerschaft-von-rechtsanwaelten.jobs.personio.de/xml?language=de"
+  },
+  "verified": true,
+  "job_count": 40,
+  "notes": "Hauptsitz Köln."
+ },
+ {
+  "name": "Osborne Clarke",
+  "category": "kanzlei",
+  "city": "Köln",
+  "remote_friendly": false,
+  "careers_url": "https://careers.osborneclarke.com/vacancies/vacancy-search-results.aspx",
+  "ats": {
+   "type": "html",
+   "feed_url": "https://careers.osborneclarke.com/vacancies/vacancy-search-results.aspx"
+  },
+  "verified": false,
+  "job_count": null,
+  "notes": "Eigenes Bewerberportal (vacancyID-Links)."
+ },
+ {
+  "name": "Taylor Wessing",
+  "category": "kanzlei",
+  "city": "Düsseldorf",
+  "remote_friendly": false,
+  "careers_url": "https://www.taylorwessing.com/de/careers",
+  "ats": {
+   "type": "html",
+   "feed_url": "https://www.taylorwessing.com/de/careers"
+  },
+  "verified": false,
+  "job_count": null,
+  "notes": "Talention-Widget, kein öffentlicher Feed gefunden."
+ },
+ {
+  "name": "Latham & Watkins",
+  "category": "kanzlei",
+  "city": "Düsseldorf",
+  "remote_friendly": false,
+  "careers_url": "https://www.lwcareers.com/en/",
+  "ats": {
+   "type": "html",
+   "feed_url": "https://www.lwcareers.com/en/"
+  },
+  "verified": false,
+  "job_count": null,
+  "notes": "iCIMS (euascareers-lw.icims.com u.a.)."
+ },
+ {
+  "name": "White & Case",
+  "category": "kanzlei",
+  "city": "Düsseldorf",
+  "remote_friendly": false,
+  "careers_url": "https://www.whitecase.com/careers/locations/germany",
+  "ats": {
+   "type": "html",
+   "feed_url": "https://www.whitecase.com/careers/locations/germany"
+  },
+  "verified": false,
+  "job_count": null,
+  "notes": "Seite blockt Bots (403) – evtl. Browser-UA/Headless nötig."
+ },
+ {
+  "name": "Baker McKenzie",
+  "category": "kanzlei",
+  "city": "Düsseldorf",
+  "remote_friendly": false,
+  "careers_url": "https://careers.bakermckenzie.com/en_US/opportunities",
+  "ats": {
+   "type": "html",
+   "feed_url": "https://careers.bakermckenzie.com/en_US/opportunities"
+  },
+  "verified": false,
+  "job_count": null,
+  "notes": "Avature-Portal; DE-Minisite karriere.bakermckenzie.com."
+ },
+ {
+  "name": "DLA Piper",
+  "category": "kanzlei",
+  "city": "Köln",
+  "remote_friendly": false,
+  "careers_url": "https://jobs.dlapiper.com",
+  "ats": {
+   "type": "successfactors_rss",
+   "host": "jobs.dlapiper.com",
+   "feed_url": "https://jobs.dlapiper.com/services/rss/job/?locale=de_DE&keywords="
+  },
+  "verified": true,
+  "job_count": 20,
+  "notes": "SuccessFactors RMK; RSS liefert nur die 20 neuesten Treffer – mit keywords=Werkstudent/Köln filtern."
+ },
+ {
+  "name": "Dentons",
+  "category": "kanzlei",
+  "city": "Düsseldorf",
+  "remote_friendly": false,
+  "careers_url": "https://apply.workable.com/dentons-europe/",
+  "ats": {
+   "type": "workable",
+   "slug": "dentons-europe",
+   "feed_url": "https://apply.workable.com/api/v1/widget/accounts/dentons-europe"
+  },
+  "verified": true,
+  "job_count": 76,
+  "notes": "Workable-Konto Dentons Europe (inkl. Deutschland). Feed am 05.10.2026 mit Status 200 abgerufen; Workable antwortet bei vielen Abrufen schnell mit 429 (Rate-Limit), daher langsam abfragen."
+ },
+ {
+  "name": "Hoffmann Liebs",
+  "category": "kanzlei",
+  "city": "Düsseldorf",
+  "remote_friendly": false,
+  "careers_url": "https://www.hoffmannliebs.de/karriere/",
+  "ats": {
+   "type": "html",
+   "feed_url": "https://www.hoffmannliebs.de/karriere/"
+  },
+  "verified": false,
+  "job_count": null,
+  "notes": "Eigene WordPress-Seite."
+ },
+ {
+  "name": "Loschelder",
+  "category": "kanzlei",
+  "city": "Köln",
+  "remote_friendly": false,
+  "careers_url": "https://loschelder.de/de/rechtsanwaelte/karriere.html",
+  "ats": {
+   "type": "html",
+   "feed_url": "https://loschelder.de/de/rechtsanwaelte/karriere.html"
+  },
+  "verified": false,
+  "job_count": null,
+  "notes": "Eigene TYPO3-Seite."
+ },
+ {
+  "name": "Redeker Sellner Dahs",
+  "category": "kanzlei",
+  "city": "Bonn/Köln",
+  "remote_friendly": false,
+  "careers_url": "https://www.redeker.de/de/karriere/anwaelte",
+  "ats": {
+   "type": "html",
+   "feed_url": "https://www.redeker.de/de/karriere/anwaelte"
+  },
+  "verified": false,
+  "job_count": null,
+  "notes": "Eigene Seite; Hauptsitz Bonn."
+ },
+ {
+  "name": "Orth Kluth",
+  "category": "kanzlei",
+  "city": "Düsseldorf",
+  "remote_friendly": false,
+  "careers_url": "https://www.orthkluth.com/",
+  "ats": {
+   "type": "html",
+   "feed_url": "https://www.orthkluth.com/"
+  },
+  "verified": false,
+  "job_count": null,
+  "notes": "Karriere-Unterseite nicht stabil erreichbar; Stellen über Website."
+ },
+ {
+  "name": "ARQIS",
+  "category": "kanzlei",
+  "city": "Düsseldorf",
+  "remote_friendly": false,
+  "careers_url": "https://arqis.jobs.personio.de",
+  "ats": {
+   "type": "personio",
+   "slug": "arqis",
+   "feed_url": "https://arqis.jobs.personio.de/xml?language=de"
+  },
+  "verified": true,
+  "job_count": 21,
+  "notes": ""
+ },
+ {
+  "name": "Pinsent Masons",
+  "category": "kanzlei",
+  "city": "Düsseldorf",
+  "remote_friendly": false,
+  "careers_url": "https://ehpy.fa.em5.oraclecloud.com/hcmUI/CandidateExperience/en/sites/CX_1001/jobs",
+  "ats": {
+   "type": "oracle_hcm",
+   "host": "ehpy.fa.em5.oraclecloud.com",
+   "site": "CX_1001",
+   "feed_url": "https://ehpy.fa.em5.oraclecloud.com/hcmRestApi/resources/latest/recruitingCEJobRequisitions?onlyData=true&expand=requisitionList&finder=findReqs;siteNumber=CX_1001,limit=200,offset=0,sortBy=POSTING_DATES_DESC"
+  },
+  "verified": true,
+  "job_count": 58,
+  "notes": "Oracle Recruiting Cloud, global (Filter PrimaryLocationCountry=DE)."
+ },
+ {
+  "name": "Simmons & Simmons",
+  "category": "kanzlei",
+  "city": "Düsseldorf",
+  "remote_friendly": false,
+  "careers_url": "https://www.simmons-simmons.com/de/karriere",
+  "ats": {
+   "type": "html",
+   "feed_url": "https://www.simmons-simmons.com/de/karriere"
+  },
+  "verified": false,
+  "job_count": null,
+  "notes": ""
+ },
+ {
+  "name": "McDermott Will & Schulte",
+  "category": "kanzlei",
+  "city": "Düsseldorf/Köln",
+  "remote_friendly": false,
+  "careers_url": "https://www.mcdermottlaw.com/de/careers/",
+  "ats": {
+   "type": "html",
+   "feed_url": "https://www.mcdermottlaw.com/de/careers/"
+  },
+  "verified": false,
+  "job_count": null,
+  "notes": "mwe.com leitet auf mcdermottlaw.com um."
+ },
+ {
+  "name": "Kliemt.Arbeitsrecht",
+  "category": "kanzlei",
+  "city": "Düsseldorf",
+  "remote_friendly": false,
+  "careers_url": "https://talents.kliemt.de/",
+  "ats": {
+   "type": "html",
+   "feed_url": "https://talents.kliemt.de/"
+  },
+  "verified": false,
+  "job_count": null,
+  "notes": "WordPress, Stellen unter /job/… (u.a. wissenschaftliche Mitarbeiter)."
+ },
+ {
+  "name": "Küttner Rechtsanwälte",
+  "category": "kanzlei",
+  "city": "Köln",
+  "remote_friendly": false,
+  "careers_url": "https://www.kuettner-law.de/",
+  "ats": {
+   "type": "html",
+   "feed_url": "https://www.kuettner-law.de/"
+  },
+  "verified": false,
+  "job_count": null,
+  "notes": "Arbeitsrechtsboutique Köln; Website zeitweise nicht erreichbar."
+ },
+ {
+  "name": "Pusch Wahlig Workplace Law",
+  "category": "kanzlei",
+  "city": "Düsseldorf",
+  "remote_friendly": false,
+  "careers_url": "https://puschwahlig-workplace-law.jobs.personio.de",
+  "ats": {
+   "type": "personio",
+   "slug": "puschwahlig-workplace-law",
+   "feed_url": "https://puschwahlig-workplace-law.jobs.personio.de/xml?language=de"
+  },
+  "verified": true,
+  "job_count": 7,
+  "notes": "Arbeitsrecht."
+ },
+ {
+  "name": "Bird & Bird",
+  "category": "kanzlei",
+  "city": "Düsseldorf",
+  "remote_friendly": false,
+  "careers_url": "https://www.twobirds.com/de/careers/germany",
+  "ats": {
+   "type": "html",
+   "feed_url": "https://www.twobirds.com/de/careers/germany"
+  },
+  "verified": false,
+  "job_count": null,
+  "notes": ""
+ },
+ {
+  "name": "Fieldfisher",
+  "category": "kanzlei",
+  "city": "Düsseldorf",
+  "remote_friendly": false,
+  "careers_url": "https://fieldfisher.jobs.personio.de",
+  "ats": {
+   "type": "personio",
+   "slug": "fieldfisher",
+   "feed_url": "https://fieldfisher.jobs.personio.de/xml?language=de"
+  },
+  "verified": true,
+  "job_count": 31,
+  "notes": ""
+ },
+ {
+  "name": "Mayer Brown",
+  "category": "kanzlei",
+  "city": "Düsseldorf",
+  "remote_friendly": false,
+  "careers_url": "https://www.mayerbrown.com/de/careers",
+  "ats": {
+   "type": "html",
+   "feed_url": "https://www.mayerbrown.com/de/careers"
+  },
+  "verified": false,
+  "job_count": null,
+  "notes": "iCIMS (globalcareers-mayerbrown.icims.com)."
+ },
+ {
+  "name": "Jones Day",
+  "category": "kanzlei",
+  "city": "Düsseldorf",
+  "remote_friendly": false,
+  "careers_url": "https://www.jonesdaycareers.com",
+  "ats": {
+   "type": "html",
+   "feed_url": "https://www.jonesdaycareers.com"
+  },
+  "verified": false,
+  "job_count": null,
+  "notes": ""
+ },
+ {
+  "name": "Herbert Smith Freehills Kramer",
+  "category": "kanzlei",
+  "city": "Düsseldorf",
+  "remote_friendly": false,
+  "careers_url": "https://careers.hsfkramer.com/global/en",
+  "ats": {
+   "type": "html",
+   "feed_url": "https://careers.hsfkramer.com/global/en"
+  },
+  "verified": false,
+  "job_count": null,
+  "notes": "Phenom People Karriereseite."
+ },
+ {
+  "name": "Meilicke Hoffmann & Partner",
+  "category": "kanzlei",
+  "city": "Bonn",
+  "remote_friendly": false,
+  "careers_url": "https://www.meilicke-hoffmann.de/de/karriere.html",
+  "ats": {
+   "type": "html",
+   "feed_url": "https://www.meilicke-hoffmann.de/de/karriere.html"
+  },
+  "verified": false,
+  "job_count": null,
+  "notes": ""
+ },
+ {
+  "name": "ADVANT Beiten",
+  "category": "kanzlei",
+  "city": "Düsseldorf",
+  "remote_friendly": false,
+  "careers_url": "https://www.advant-beiten.com/karriere/stellenanzeigen",
+  "ats": {
+   "type": "html",
+   "feed_url": "https://www.advant-beiten.com/karriere/stellenanzeigen"
+  },
+  "verified": false,
+  "job_count": null,
+  "notes": ""
+ },
+ {
+  "name": "YPOG",
+  "category": "kanzlei",
+  "city": "Köln",
+  "remote_friendly": false,
+  "careers_url": "https://ypog-law.jobs.personio.de",
+  "ats": {
+   "type": "personio",
+   "slug": "ypog-law",
+   "feed_url": "https://ypog-law.jobs.personio.de/xml?language=de"
+  },
+  "verified": true,
+  "job_count": 19,
+  "notes": ""
+ },
+ {
+  "name": "Rotthege",
+  "category": "kanzlei",
+  "city": "Düsseldorf",
+  "remote_friendly": false,
+  "careers_url": "https://www.rotthege.com/karriere/",
+  "ats": {
+   "type": "html",
+   "feed_url": "https://www.rotthege.com/karriere/"
+  },
+  "verified": false,
+  "job_count": null,
+  "notes": "personio 'rotthege' zeigt nur Standard-Initiativbewerbung – unsicher, deshalb html."
+ },
+ {
+  "name": "Cornelius Bartenbach Haesemann (CBH)",
+  "category": "kanzlei",
+  "city": "Köln",
+  "remote_friendly": false,
+  "careers_url": "https://www.cbh.de/ihre-karriere-bei-cbh-rechtsanwaelte/#jobs",
+  "ats": {
+   "type": "html",
+   "feed_url": "https://www.cbh.de/ihre-karriere-bei-cbh-rechtsanwaelte/#jobs"
+  },
+  "verified": false,
+  "job_count": null,
+  "notes": ""
+ },
+ {
+  "name": "WBS.LEGAL",
+  "category": "kanzlei",
+  "city": "Köln",
+  "remote_friendly": false,
+  "careers_url": "https://join.com/companies/wbslegal",
+  "ats": {
+   "type": "join",
+   "slug": "wbslegal",
+   "feed_url": "https://join.com/companies/wbslegal"
+  },
+  "verified": true,
+  "job_count": 2,
+  "notes": "IT-/Medien-/Datenschutzrecht."
+ },
+ {
+  "name": "LLR Legerlotz Laschet",
+  "category": "kanzlei",
+  "city": "Köln",
+  "remote_friendly": false,
+  "careers_url": "https://www.llr.de/karriere/",
+  "ats": {
+   "type": "html",
+   "feed_url": "https://www.llr.de/karriere/"
+  },
+  "verified": false,
+  "job_count": null,
+  "notes": "greenhouse 'llr' (0 Stellen) ist nicht zuordenbar."
+ },
+ {
+  "name": "Glade Michel Wirtz",
+  "category": "kanzlei",
+  "city": "Düsseldorf",
+  "remote_friendly": false,
+  "careers_url": "https://www.gmw-law.de/karriere/",
+  "ats": {
+   "type": "html",
+   "feed_url": "https://www.gmw-law.de/karriere/"
+  },
+  "verified": false,
+  "job_count": null,
+  "notes": "Website blockt teils automatisierte Abrufe."
+ },
+ {
+  "name": "Kapellmann",
+  "category": "kanzlei",
+  "city": "Düsseldorf",
+  "remote_friendly": false,
+  "careers_url": "https://kapellmann.de/de/karriere",
+  "ats": {
+   "type": "html",
+   "feed_url": "https://kapellmann.de/de/karriere"
+  },
+  "verified": false,
+  "job_count": null,
+  "notes": "Eigene Unterseite für Referendare & wissenschaftliche Mitarbeiter."
+ },
+ {
+  "name": "Bietmann",
+  "category": "kanzlei",
+  "city": "Köln",
+  "remote_friendly": false,
+  "careers_url": "https://jobs.bietmann.eu",
+  "ats": {
+   "type": "html",
+   "feed_url": "https://jobs.bietmann.eu"
+  },
+  "verified": false,
+  "job_count": null,
+  "notes": ""
+ },
+ {
+  "name": "Hecker Werner Himmelreich",
+  "category": "kanzlei",
+  "city": "Köln",
+  "remote_friendly": false,
+  "careers_url": "https://www.hwhlaw.de/karriere/",
+  "ats": {
+   "type": "html",
+   "feed_url": "https://www.hwhlaw.de/karriere/"
+  },
+  "verified": false,
+  "job_count": null,
+  "notes": ""
+ },
+ {
+  "name": "Busse & Miessen",
+  "category": "kanzlei",
+  "city": "Bonn",
+  "remote_friendly": false,
+  "careers_url": "https://www.busse-miessen.de/karriere/",
+  "ats": {
+   "type": "html",
+   "feed_url": "https://www.busse-miessen.de/karriere/"
+  },
+  "verified": false,
+  "job_count": null,
+  "notes": ""
+ },
+ {
+  "name": "SKW Schwarz",
+  "category": "kanzlei",
+  "city": "Düsseldorf",
+  "remote_friendly": false,
+  "careers_url": "https://karriere.skwschwarz.de/",
+  "ats": {
+   "type": "html",
+   "feed_url": "https://karriere.skwschwarz.de/"
+  },
+  "verified": false,
+  "job_count": null,
+  "notes": "Headless-CMS (GraphQL unter cms.karriere.skwschwarz.de/graphql)."
+ },
+ {
+  "name": "FPS Rechtsanwälte",
+  "category": "kanzlei",
+  "city": "Düsseldorf",
+  "remote_friendly": false,
+  "careers_url": "https://fps-law.jobs.personio.de",
+  "ats": {
+   "type": "personio",
+   "slug": "fps-law",
+   "feed_url": "https://fps-law.jobs.personio.de/xml?language=de"
+  },
+  "verified": true,
+  "job_count": 12,
+  "notes": "subcompany unterscheidet DUS/FFM."
+ },
+ {
+  "name": "Hausfeld",
+  "category": "kanzlei",
+  "city": "Düsseldorf",
+  "remote_friendly": false,
+  "careers_url": "https://www.hausfeld.com/de-de/karriere/open-positions",
+  "ats": {
+   "type": "html",
+   "feed_url": "https://www.hausfeld.com/de-de/karriere/open-positions"
+  },
+  "verified": false,
+  "job_count": null,
+  "notes": ""
+ },
+ {
+  "name": "Graf von Westphalen",
+  "category": "kanzlei",
+  "city": "Düsseldorf",
+  "remote_friendly": false,
+  "careers_url": "https://jobs.gvw.com/stellenangebote.html",
+  "ats": {
+   "type": "html",
+   "feed_url": "https://jobs.gvw.com/stellenangebote.html"
+  },
+  "verified": false,
+  "job_count": null,
+  "notes": "rexx systems Jobportal."
+ },
+ {
+  "name": "Grooterhorst & Partner",
+  "category": "kanzlei",
+  "city": "Düsseldorf",
+  "remote_friendly": false,
+  "careers_url": "https://www.grooterhorst.de/",
+  "ats": {
+   "type": "html",
+   "feed_url": "https://www.grooterhorst.de/"
+  },
+  "verified": false,
+  "job_count": null,
+  "notes": ""
+ },
+ {
+  "name": "Michels.pmks",
+  "category": "kanzlei",
+  "city": "Köln",
+  "remote_friendly": false,
+  "careers_url": "https://www.michels-pmks.de/",
+  "ats": {
+   "type": "html",
+   "feed_url": "https://www.michels-pmks.de/"
+  },
+  "verified": false,
+  "job_count": null,
+  "notes": ""
+ },
+ {
+  "name": "Mütze Korsch",
+  "category": "kanzlei",
+  "city": "Düsseldorf",
+  "remote_friendly": false,
+  "careers_url": "https://www.muetze-korsch.de/",
+  "ats": {
+   "type": "html",
+   "feed_url": "https://www.muetze-korsch.de/"
+  },
+  "verified": false,
+  "job_count": null,
+  "notes": ""
+ },
+ {
+  "name": "Lungerich Lenz Schuhmacher",
+  "category": "kanzlei",
+  "city": "Köln",
+  "remote_friendly": false,
+  "careers_url": "https://www.lls.de/",
+  "ats": {
+   "type": "html",
+   "feed_url": "https://www.lls.de/"
+  },
+  "verified": false,
+  "job_count": null,
+  "notes": ""
+ },
+ {
+  "name": "Deutsche Telekom",
+  "category": "rechtsabteilung",
+  "city": "Bonn",
+  "remote_friendly": true,
+  "careers_url": "https://careers.telekom.com/de",
+  "ats": {
+   "type": "html",
+   "feed_url": "https://careers.telekom.com/de"
+  },
+  "verified": false,
+  "job_count": null,
+  "notes": "Eightfold-Portal (telekom-deu.eightfold.ai); kein offener Feed verifiziert."
+ },
+ {
+  "name": "DHL Group",
+  "category": "rechtsabteilung",
+  "city": "Bonn",
+  "remote_friendly": false,
+  "careers_url": "https://careers.dhl.com/eu/de",
+  "ats": {
+   "type": "html",
+   "feed_url": "https://careers.dhl.com/eu/de"
+  },
+  "verified": false,
+  "job_count": null,
+  "notes": "Phenom People."
+ },
+ {
+  "name": "Postbank (Deutsche Bank)",
+  "category": "rechtsabteilung",
+  "city": "Bonn",
+  "remote_friendly": false,
+  "careers_url": "https://db.wd3.myworkdayjobs.com/PBWebsite",
+  "ats": {
+   "type": "workday",
+   "slug": "db",
+   "host": "db.wd3.myworkdayjobs.com",
+   "site": "PBWebsite",
+   "feed_url": "https://db.wd3.myworkdayjobs.com/wday/cxs/db/PBWebsite/jobs",
+   "method": "POST"
+  },
+  "verified": true,
+  "job_count": 135,
+  "notes": "Postbank-Site im Deutsche-Bank-Workday."
+ },
+ {
+  "name": "Bayer",
+  "category": "rechtsabteilung",
+  "city": "Leverkusen",
+  "remote_friendly": false,
+  "careers_url": "https://jobs.bayer.com",
+  "ats": {
+   "type": "successfactors_rss",
+   "host": "jobs.bayer.com",
+   "feed_url": "https://jobs.bayer.com/services/rss/job/?locale=de_DE&keywords="
+  },
+  "verified": true,
+  "job_count": 20,
+  "notes": "RSS nur 20 neueste; keywords=Legal/Werkstudent nutzen."
+ },
+ {
+  "name": "Covestro",
+  "category": "rechtsabteilung",
+  "city": "Leverkusen",
+  "remote_friendly": false,
+  "careers_url": "https://covestro.wd3.myworkdayjobs.com/cov_external",
+  "ats": {
+   "type": "workday",
+   "slug": "covestro",
+   "host": "covestro.wd3.myworkdayjobs.com",
+   "site": "cov_external",
+   "feed_url": "https://covestro.wd3.myworkdayjobs.com/wday/cxs/covestro/cov_external/jobs",
+   "method": "POST"
+  },
+  "verified": true,
+  "job_count": 180,
+  "notes": ""
+ },
+ {
+  "name": "LANXESS",
+  "category": "rechtsabteilung",
+  "city": "Köln",
+  "remote_friendly": false,
+  "careers_url": "https://career.lanxess.com/de/de",
+  "ats": {
+   "type": "html",
+   "feed_url": "https://career.lanxess.com/de/de"
+  },
+  "verified": false,
+  "job_count": null,
+  "notes": "Phenom People."
+ },
+ {
+  "name": "REWE Group",
+  "category": "rechtsabteilung",
+  "city": "Köln",
+  "remote_friendly": false,
+  "careers_url": "https://karriere.rewe-group.com",
+  "ats": {
+   "type": "successfactors_rss",
+   "host": "karriere.rewe-group.com",
+   "feed_url": "https://karriere.rewe-group.com/services/rss/job/?locale=de_DE&keywords="
+  },
+  "verified": true,
+  "job_count": 20,
+  "notes": "Enthält auch toom, Lekkerland, Penny. RSS nur 20 neueste – keywords nutzen."
+ },
+ {
+  "name": "REWE digital",
+  "category": "rechtsabteilung",
+  "city": "Köln",
+  "remote_friendly": true,
+  "careers_url": "https://www.rewe-digital.com/de/jobs",
+  "ats": {
+   "type": "dvinci",
+   "slug": "rewe-digital",
+   "feed_url": "https://rewe-digital.dvinci-hr.com/jobPublication/list.json"
+  },
+  "verified": true,
+  "job_count": 11,
+  "notes": ""
+ },
+ {
+  "name": "Ford-Werke",
+  "category": "rechtsabteilung",
+  "city": "Köln",
+  "remote_friendly": false,
+  "careers_url": "https://corporate.ford.com/careers.html",
+  "ats": {
+   "type": "html",
+   "feed_url": "https://corporate.ford.com/careers.html"
+  },
+  "verified": false,
+  "job_count": null,
+  "notes": "Seite blockt Bots."
+ },
+ {
+  "name": "AXA Deutschland",
+  "category": "rechtsabteilung",
+  "city": "Köln",
+  "remote_friendly": false,
+  "careers_url": "https://karriere.axa.de/",
+  "ats": {
+   "type": "html",
+   "feed_url": "https://karriere.axa.de/"
+  },
+  "verified": false,
+  "job_count": null,
+  "notes": "Seite blockt automatisierte Abrufe."
+ },
+ {
+  "name": "BarmeniaGothaer",
+  "category": "rechtsabteilung",
+  "city": "Köln",
+  "remote_friendly": false,
+  "careers_url": "https://karriere.barmeniagothaer.de/",
+  "ats": {
+   "type": "smartrecruiters",
+   "slug": "BarmeniaGothaerAG",
+   "feed_url": "https://api.smartrecruiters.com/v1/companies/BarmeniaGothaerAG/postings"
+  },
+  "verified": true,
+  "job_count": 376,
+  "notes": "Fusion Gothaer+Barmenia; u.a. Volljurist/Syndikus-Stellen."
+ },
+ {
+  "name": "DEVK",
+  "category": "rechtsabteilung",
+  "city": "Köln",
+  "remote_friendly": false,
+  "careers_url": "https://jobs.devk.de/jobs/",
+  "ats": {
+   "type": "html",
+   "feed_url": "https://jobs.devk.de/jobs/"
+  },
+  "verified": false,
+  "job_count": null,
+  "notes": "Eigenes Portal (Nuxt)."
+ },
+ {
+  "name": "Zurich Gruppe Deutschland",
+  "category": "rechtsabteilung",
+  "city": "Köln",
+  "remote_friendly": false,
+  "careers_url": "https://www.zurich.de/de/karriere",
+  "ats": {
+   "type": "html",
+   "feed_url": "https://www.zurich.de/de/karriere"
+  },
+  "verified": false,
+  "job_count": null,
+  "notes": ""
+ },
+ {
+  "name": "ERGO Group",
+  "category": "rechtsabteilung",
+  "city": "Düsseldorf",
+  "remote_friendly": false,
+  "careers_url": "https://careers.munichre.com/de/ergo",
+  "ats": {
+   "type": "html",
+   "feed_url": "https://careers.munichre.com/de/ergo"
+  },
+  "verified": false,
+  "job_count": null,
+  "notes": "Gemeinsames Munich-Re/ERGO-Portal (inkl. DKV Köln)."
+ },
+ {
+  "name": "Provinzial",
+  "category": "rechtsabteilung",
+  "city": "Düsseldorf",
+  "remote_friendly": false,
+  "careers_url": "https://karriere-provinzial.de/",
+  "ats": {
+   "type": "html",
+   "feed_url": "https://karriere-provinzial.de/"
+  },
+  "verified": false,
+  "job_count": null,
+  "notes": ""
+ },
+ {
+  "name": "ARAG",
+  "category": "rechtsabteilung",
+  "city": "Düsseldorf",
+  "remote_friendly": false,
+  "careers_url": "https://www.arag-karriere.de/",
+  "ats": {
+   "type": "html",
+   "feed_url": "https://www.arag-karriere.de/"
+  },
+  "verified": false,
+  "job_count": null,
+  "notes": "Talents Connect Portal."
+ },
+ {
+  "name": "RheinEnergie",
+  "category": "rechtsabteilung",
+  "city": "Köln",
+  "remote_friendly": false,
+  "careers_url": "https://www.rheinenergie.com/karriere/jobs/stellenangebote/",
+  "ats": {
+   "type": "dvinci",
+   "slug": "rheinenergie",
+   "feed_url": "https://rheinenergie.dvinci-hr.com/jobPublication/list.json"
+  },
+  "verified": true,
+  "job_count": 37,
+  "notes": ""
+ },
+ {
+  "name": "Uniper",
+  "category": "rechtsabteilung",
+  "city": "Düsseldorf",
+  "remote_friendly": false,
+  "careers_url": "https://jobs.uniper.energy",
+  "ats": {
+   "type": "successfactors_rss",
+   "host": "jobs.uniper.energy",
+   "feed_url": "https://jobs.uniper.energy/services/rss/job/?locale=de_DE&keywords="
+  },
+  "verified": true,
+  "job_count": 20,
+  "notes": "Hatte 'Working Student General Compliance' – keywords=Compliance/Legal."
+ },
+ {
+  "name": "Henkel",
+  "category": "rechtsabteilung",
+  "city": "Düsseldorf",
+  "remote_friendly": false,
+  "careers_url": "https://www.henkel.de/karriere/finde-deinen-job-und-bewirb-dich",
+  "ats": {
+   "type": "html",
+   "feed_url": "https://www.henkel.de/karriere/finde-deinen-job-und-bewirb-dich"
+  },
+  "verified": false,
+  "job_count": null,
+  "notes": ""
+ },
+ {
+  "name": "METRO AG",
+  "category": "rechtsabteilung",
+  "city": "Düsseldorf",
+  "remote_friendly": false,
+  "careers_url": "https://www.metroag.de/karriere",
+  "ats": {
+   "type": "html",
+   "feed_url": "https://www.metroag.de/karriere"
+  },
+  "verified": false,
+  "job_count": null,
+  "notes": "Seite blockt Bots (403)."
+ },
+ {
+  "name": "Ceconomy",
+  "category": "rechtsabteilung",
+  "city": "Düsseldorf",
+  "remote_friendly": false,
+  "careers_url": "https://www.ceconomy.de/de/karriere/",
+  "ats": {
+   "type": "html",
+   "feed_url": "https://www.ceconomy.de/de/karriere/"
+  },
+  "verified": false,
+  "job_count": null,
+  "notes": "Seite blockt Bots (403)."
+ },
+ {
+  "name": "Vodafone Deutschland",
+  "category": "rechtsabteilung",
+  "city": "Düsseldorf",
+  "remote_friendly": false,
+  "careers_url": "https://www.vodafone.de/karriere",
+  "ats": {
+   "type": "html",
+   "feed_url": "https://www.vodafone.de/karriere"
+  },
+  "verified": false,
+  "job_count": null,
+  "notes": "SuccessFactors (company=vodafoneprP), kein RSS gefunden."
+ },
+ {
+  "name": "RTL Deutschland",
+  "category": "rechtsabteilung",
+  "city": "Köln",
+  "remote_friendly": false,
+  "careers_url": "https://jobsearch.createyourowncareer.com/RTL/?locale=de_DE",
+  "ats": {
+   "type": "html",
+   "feed_url": "https://jobsearch.createyourowncareer.com/RTL/?locale=de_DE"
+  },
+  "verified": false,
+  "job_count": null,
+  "notes": "Bertelsmann-Jobportal; recruitee 'rtl' ist RTL Nederland."
+ },
+ {
+  "name": "WDR",
+  "category": "rechtsabteilung",
+  "city": "Köln",
+  "remote_friendly": false,
+  "careers_url": "https://karriere.wdr.de/",
+  "ats": {
+   "type": "html",
+   "feed_url": "https://karriere.wdr.de/"
+  },
+  "verified": false,
+  "job_count": null,
+  "notes": "Bewerbungsportal bewerbung.wdr.de (index.php?ac=jobad&id=…)."
+ },
+ {
+  "name": "Deutsche Welle",
+  "category": "rechtsabteilung",
+  "city": "Bonn",
+  "remote_friendly": false,
+  "careers_url": "https://jobs.dw.com/Jobs/1?lang=ger",
+  "ats": {
+   "type": "html",
+   "feed_url": "https://jobs.dw.com/Jobs/1?lang=ger"
+  },
+  "verified": false,
+  "job_count": null,
+  "notes": "Haufe Umantis (recruitingapp-5401)."
+ },
+ {
+  "name": "Douglas",
+  "category": "rechtsabteilung",
+  "city": "Düsseldorf",
+  "remote_friendly": false,
+  "careers_url": "https://jobs.douglas.group",
+  "ats": {
+   "type": "successfactors_rss",
+   "host": "jobs.douglas.group",
+   "feed_url": "https://jobs.douglas.group/services/rss/job/?locale=de_DE&keywords="
+  },
+  "verified": true,
+  "job_count": 20,
+  "notes": "RSS nur 20 neueste."
+ },
+ {
+  "name": "Lufthansa Group",
+  "category": "rechtsabteilung",
+  "city": "Köln",
+  "remote_friendly": false,
+  "careers_url": "https://www.lufthansagroup.careers/de/jobs",
+  "ats": {
+   "type": "html",
+   "feed_url": "https://www.lufthansagroup.careers/de/jobs"
+  },
+  "verified": false,
+  "job_count": null,
+  "notes": "Milch & Zucker BeeSite; inkl. Eurowings."
+ },
+ {
+  "name": "DEUTZ AG",
+  "category": "rechtsabteilung",
+  "city": "Köln",
+  "remote_friendly": false,
+  "careers_url": "https://www.deutz.com/de/karriere",
+  "ats": {
+   "type": "html",
+   "feed_url": "https://www.deutz.com/de/karriere"
+  },
+  "verified": false,
+  "job_count": null,
+  "notes": "SuccessFactors, RSS-Host nicht gefunden."
+ },
+ {
+  "name": "STRABAG",
+  "category": "rechtsabteilung",
+  "city": "Köln",
+  "remote_friendly": false,
+  "careers_url": "https://karriere.strabag.com/de",
+  "ats": {
+   "type": "html",
+   "feed_url": "https://karriere.strabag.com/de"
+  },
+  "verified": false,
+  "job_count": null,
+  "notes": "Cornerstone (csod)."
+ },
+ {
+  "name": "Rheinmetall",
+  "category": "rechtsabteilung",
+  "city": "Düsseldorf",
+  "remote_friendly": false,
+  "careers_url": "https://www.rheinmetall.com/de/karriere/aktuelle-stellenangebote",
+  "ats": {
+   "type": "html",
+   "feed_url": "https://www.rheinmetall.com/de/karriere/aktuelle-stellenangebote"
+  },
+  "verified": false,
+  "job_count": null,
+  "notes": ""
+ },
+ {
+  "name": "Ströer",
+  "category": "rechtsabteilung",
+  "city": "Köln",
+  "remote_friendly": false,
+  "careers_url": "https://karriere.stroeer.com/de/jobs",
+  "ats": {
+   "type": "html",
+   "feed_url": "https://karriere.stroeer.com/de/jobs"
+  },
+  "verified": false,
+  "job_count": null,
+  "notes": ""
+ },
+ {
+  "name": "L'Oréal Deutschland",
+  "category": "rechtsabteilung",
+  "city": "Düsseldorf",
+  "remote_friendly": false,
+  "careers_url": "https://careers.loreal.com/en",
+  "ats": {
+   "type": "html",
+   "feed_url": "https://careers.loreal.com/en"
+  },
+  "verified": false,
+  "job_count": null,
+  "notes": ""
+ },
+ {
+  "name": "HARIBO",
+  "category": "rechtsabteilung",
+  "city": "Grafschaft/Bonn",
+  "remote_friendly": false,
+  "careers_url": "https://www.haribo.com/de-de/karriere/arbeiten-bei-haribo",
+  "ats": {
+   "type": "html",
+   "feed_url": "https://www.haribo.com/de-de/karriere/arbeiten-bei-haribo"
+  },
+  "verified": false,
+  "job_count": null,
+  "notes": ""
+ },
+ {
+  "name": "Grünenthal",
+  "category": "rechtsabteilung",
+  "city": "Aachen",
+  "remote_friendly": false,
+  "careers_url": "https://careers.grunenthal.com",
+  "ats": {
+   "type": "successfactors_rss",
+   "host": "careers.grunenthal.com",
+   "feed_url": "https://careers.grunenthal.com/services/rss/job/?locale=de_DE&keywords="
+  },
+  "verified": true,
+  "job_count": 20,
+  "notes": "RSS nur 20 neueste."
+ },
+ {
+  "name": "Miltenyi Biotec",
+  "category": "rechtsabteilung",
+  "city": "Bergisch Gladbach",
+  "remote_friendly": false,
+  "careers_url": "https://www.miltenyibiotec.com/about-us/careers/open-positions.html",
+  "ats": {
+   "type": "html",
+   "feed_url": "https://www.miltenyibiotec.com/about-us/careers/open-positions.html"
+  },
+  "verified": false,
+  "job_count": null,
+  "notes": ""
+ },
+ {
+  "name": "Toyota Deutschland",
+  "category": "rechtsabteilung",
+  "city": "Köln",
+  "remote_friendly": false,
+  "careers_url": "https://www.toyota.de/karriere",
+  "ats": {
+   "type": "dvinci",
+   "slug": "toyota",
+   "feed_url": "https://toyota.dvinci-hr.com/jobPublication/list.json"
+  },
+  "verified": true,
+  "job_count": 6,
+  "notes": "d.vinci-Konto 'toyota' mit deutschen Stellen (Toyota Deutschland GmbH, Köln)."
+ },
+ {
+  "name": "Toyota Kreditbank / Toyota Financial Services",
+  "category": "rechtsabteilung",
+  "city": "Köln",
+  "remote_friendly": false,
+  "careers_url": "https://jobs.toyota-bank-portal.de",
+  "ats": {
+   "type": "successfactors_rss",
+   "host": "jobs.toyota-bank-portal.de",
+   "feed_url": "https://jobs.toyota-bank-portal.de/services/rss/job/?locale=de_DE&keywords="
+  },
+  "verified": true,
+  "job_count": 20,
+  "notes": "Hatte Werkstudenten- und Audit-Stellen in Köln."
+ },
+ {
+  "name": "Koelnmesse",
+  "category": "rechtsabteilung",
+  "city": "Köln",
+  "remote_friendly": false,
+  "careers_url": "https://koelnmesse.softgarden.io/de/widgets/jobs",
+  "ats": {
+   "type": "html",
+   "feed_url": "https://koelnmesse.softgarden.io/de/widgets/jobs"
+  },
+  "verified": false,
+  "job_count": null,
+  "notes": "softgarden Widget (HTML-Liste)."
+ },
+ {
+  "name": "Sparkasse KölnBonn",
+  "category": "rechtsabteilung",
+  "city": "Köln",
+  "remote_friendly": false,
+  "careers_url": "https://karriere.sparkasse-koelnbonn.de/",
+  "ats": {
+   "type": "html",
+   "feed_url": "https://karriere.sparkasse-koelnbonn.de/"
+  },
+  "verified": false,
+  "job_count": null,
+  "notes": ""
+ },
+ {
+  "name": "Kreissparkasse Köln",
+  "category": "rechtsabteilung",
+  "city": "Köln",
+  "remote_friendly": false,
+  "careers_url": "https://ksk-koeln.helixjobs.com/_/joblist",
+  "ats": {
+   "type": "html",
+   "feed_url": "https://ksk-koeln.helixjobs.com/_/joblist"
+  },
+  "verified": false,
+  "job_count": null,
+  "notes": "helixjobs Jobliste."
+ },
+ {
+  "name": "NRW.BANK",
+  "category": "rechtsabteilung",
+  "city": "Düsseldorf",
+  "remote_friendly": false,
+  "careers_url": "https://karriere.nrwbank.de",
+  "ats": {
+   "type": "successfactors_rss",
+   "host": "karriere.nrwbank.de",
+   "feed_url": "https://karriere.nrwbank.de/services/rss/job/?locale=de_DE&keywords="
+  },
+  "verified": true,
+  "job_count": 20,
+  "notes": ""
+ },
+ {
+  "name": "Stadtwerke Köln",
+  "category": "rechtsabteilung",
+  "city": "Köln",
+  "remote_friendly": false,
+  "careers_url": "https://www.stadtwerkekoeln.de/karriere",
+  "ats": {
+   "type": "html",
+   "feed_url": "https://www.stadtwerkekoeln.de/karriere"
+  },
+  "verified": false,
+  "job_count": null,
+  "notes": ""
+ },
+ {
+  "name": "GIZ",
+  "category": "rechtsabteilung",
+  "city": "Bonn",
+  "remote_friendly": false,
+  "careers_url": "https://jobs.giz.de/index.php?ac=search_result",
+  "ats": {
+   "type": "html",
+   "feed_url": "https://jobs.giz.de/index.php?ac=search_result"
+  },
+  "verified": false,
+  "job_count": null,
+  "notes": ""
+ },
+ {
+  "name": "Aixtron",
+  "category": "rechtsabteilung",
+  "city": "Aachen",
+  "remote_friendly": false,
+  "careers_url": "https://www.aixtron.com/de/karriere/stellenangebote",
+  "ats": {
+   "type": "html",
+   "feed_url": "https://www.aixtron.com/de/karriere/stellenangebote"
+  },
+  "verified": false,
+  "job_count": null,
+  "notes": ""
+ },
+ {
+  "name": "trivago",
+  "category": "rechtsabteilung",
+  "city": "Düsseldorf",
+  "remote_friendly": true,
+  "careers_url": "https://boards.greenhouse.io/trivago",
+  "ats": {
+   "type": "greenhouse",
+   "slug": "trivago",
+   "feed_url": "https://boards-api.greenhouse.io/v1/boards/trivago/jobs"
+  },
+  "verified": true,
+  "job_count": 15,
+  "notes": ""
+ },
+ {
+  "name": "The Stepstone Group",
+  "category": "rechtsabteilung",
+  "city": "Düsseldorf",
+  "remote_friendly": true,
+  "careers_url": "https://careers.smartrecruiters.com/StepStoneGroup",
+  "ats": {
+   "type": "smartrecruiters",
+   "slug": "StepStoneGroup",
+   "feed_url": "https://api.smartrecruiters.com/v1/companies/StepStoneGroup/postings"
+  },
+  "verified": true,
+  "job_count": 97,
+  "notes": "greenhouse 'stepstone' ist StepStone (US Private Equity) – nicht verwenden."
+ },
+ {
+  "name": "HDI / Talanx",
+  "category": "rechtsabteilung",
+  "city": "Köln",
+  "remote_friendly": false,
+  "careers_url": "https://careers.hdi.group/de/karriere",
+  "ats": {
+   "type": "html",
+   "feed_url": "https://careers.hdi.group/de/karriere"
+  },
+  "verified": false,
+  "job_count": null,
+  "notes": ""
+ },
+ {
+  "name": "Generali Deutschland",
+  "category": "rechtsabteilung",
+  "city": "Köln/München",
+  "remote_friendly": false,
+  "careers_url": "https://www.generali.de/karriere",
+  "ats": {
+   "type": "html",
+   "feed_url": "https://www.generali.de/karriere"
+  },
+  "verified": false,
+  "job_count": null,
+  "notes": "Talentry-Portal."
+ },
+ {
+  "name": "IONOS",
+  "category": "rechtsabteilung",
+  "city": "Montabaur/Köln",
+  "remote_friendly": true,
+  "careers_url": "https://boards.greenhouse.io/ionos",
+  "ats": {
+   "type": "greenhouse",
+   "slug": "ionos",
+   "feed_url": "https://boards-api.greenhouse.io/v1/boards/ionos/jobs"
+  },
+  "verified": true,
+  "job_count": 37,
+  "notes": ""
+ },
+ {
+  "name": "1&1 / United Internet",
+  "category": "rechtsabteilung",
+  "city": "Montabaur",
+  "remote_friendly": true,
+  "careers_url": "https://www.united-internet.de/jobs-karriere/",
+  "ats": {
+   "type": "html",
+   "feed_url": "https://www.united-internet.de/jobs-karriere/"
+  },
+  "verified": false,
+  "job_count": null,
+  "notes": ""
+ },
+ {
+  "name": "Deutsche Glasfaser",
+  "category": "rechtsabteilung",
+  "city": "Düsseldorf",
+  "remote_friendly": true,
+  "careers_url": "https://careers.smartrecruiters.com/deutscheglasfaser",
+  "ats": {
+   "type": "smartrecruiters",
+   "slug": "deutscheglasfaser",
+   "feed_url": "https://api.smartrecruiters.com/v1/companies/deutscheglasfaser/postings"
+  },
+  "verified": true,
+  "job_count": 71,
+  "notes": ""
+ },
+ {
+  "name": "TÜV Rheinland",
+  "category": "rechtsabteilung",
+  "city": "Köln",
+  "remote_friendly": false,
+  "careers_url": "https://jobs.tuv.com/de",
+  "ats": {
+   "type": "html",
+   "feed_url": "https://jobs.tuv.com/de"
+  },
+  "verified": false,
+  "job_count": null,
+  "notes": "SuccessFactors (company=tvrheinlan) hinter eigenem Next.js-Portal."
+ },
+ {
+  "name": "DuMont Mediengruppe",
+  "category": "rechtsabteilung",
+  "city": "Köln",
+  "remote_friendly": false,
+  "careers_url": "https://dumont.de/careers/",
+  "ats": {
+   "type": "html",
+   "feed_url": "https://dumont.de/careers/"
+  },
+  "verified": false,
+  "job_count": null,
+  "notes": "Verlinkt Portale der Töchter."
+ },
+ {
+  "name": "Wolters Kluwer Deutschland",
+  "category": "legaltech",
+  "city": "Hürth",
+  "remote_friendly": true,
+  "careers_url": "https://wk.wd3.myworkdayjobs.com/External",
+  "ats": {
+   "type": "workday",
+   "slug": "wk",
+   "host": "wk.wd3.myworkdayjobs.com",
+   "site": "External",
+   "feed_url": "https://wk.wd3.myworkdayjobs.com/wday/cxs/wk/External/jobs",
+   "method": "POST"
+  },
+  "verified": true,
+  "job_count": 449,
+  "notes": "Global; searchText 'Hürth' oder 'Germany'. Sitz Hürth (Nachbarort von Erftstadt)."
+ },
+ {
+  "name": "LexisNexis Deutschland (RELX)",
+  "category": "legaltech",
+  "city": "Düsseldorf",
+  "remote_friendly": true,
+  "careers_url": "https://relx.wd3.myworkdayjobs.com/relx",
+  "ats": {
+   "type": "workday",
+   "slug": "relx",
+   "host": "relx.wd3.myworkdayjobs.com",
+   "site": "relx",
+   "feed_url": "https://relx.wd3.myworkdayjobs.com/wday/cxs/relx/relx/jobs",
+   "method": "POST"
+  },
+  "verified": true,
+  "job_count": 781,
+  "notes": "RELX-Konzern-Workday; searchText 'Düsseldorf'/'Germany'."
+ },
+ {
+  "name": "Verlag Dr. Otto Schmidt",
+  "category": "legaltech",
+  "city": "Köln",
+  "remote_friendly": false,
+  "careers_url": "https://jobs.guidecom.de/jobportal/otto-schmidt/viewAusschreibungen.html",
+  "ats": {
+   "type": "html",
+   "feed_url": "https://jobs.guidecom.de/jobportal/otto-schmidt/viewAusschreibungen.html"
+  },
+  "verified": false,
+  "job_count": null,
+  "notes": "GuideCom-Jobportal."
+ },
+ {
+  "name": "Bundesanzeiger Verlag",
+  "category": "legaltech",
+  "city": "Köln",
+  "remote_friendly": false,
+  "careers_url": "https://jobs.bundesanzeiger-verlag.de",
+  "ats": {
+   "type": "html",
+   "feed_url": "https://jobs.bundesanzeiger-verlag.de"
+  },
+  "verified": false,
+  "job_count": null,
+  "notes": "GuideCom-Jobportal."
+ },
+ {
+  "name": "juris",
+  "category": "legaltech",
+  "city": "Saarbrücken",
+  "remote_friendly": true,
+  "careers_url": "https://juris.softgarden.io/de/widgets/jobs",
+  "ats": {
+   "type": "html",
+   "feed_url": "https://juris.softgarden.io/de/widgets/jobs"
+  },
+  "verified": false,
+  "job_count": null,
+  "notes": "softgarden Widget (HTML-Liste)."
+ },
+ {
+  "name": "Haufe Group",
+  "category": "legaltech",
+  "city": "Freiburg",
+  "remote_friendly": true,
+  "careers_url": "https://jobs.haufegroup.com/",
+  "ats": {
+   "type": "smartrecruiters",
+   "slug": "haufegroup",
+   "feed_url": "https://api.smartrecruiters.com/v1/companies/haufegroup/postings"
+  },
+  "verified": true,
+  "job_count": 27,
+  "notes": "Viele Remote-Stellen (Lexware, Haufe)."
+ },
+ {
+  "name": "BRYTER",
+  "category": "legaltech",
+  "city": "Berlin/Frankfurt",
+  "remote_friendly": true,
+  "careers_url": "https://bryter.teamtailor.com/jobs",
+  "ats": {
+   "type": "teamtailor",
+   "slug": "bryter",
+   "feed_url": "https://bryter.teamtailor.com/jobs.rss"
+  },
+  "verified": true,
+  "job_count": 4,
+  "notes": ""
+ },
+ {
+  "name": "Legartis",
+  "category": "legaltech",
+  "city": "Zürich/Berlin",
+  "remote_friendly": true,
+  "careers_url": "https://legartis.jobs.personio.de",
+  "ats": {
+   "type": "personio",
+   "slug": "legartis",
+   "feed_url": "https://legartis.jobs.personio.de/xml?language=de"
+  },
+  "verified": true,
+  "job_count": 13,
+  "notes": "Contract-AI."
+ },
+ {
+  "name": "Legal Hero",
+  "category": "legaltech",
+  "city": "Hamburg",
+  "remote_friendly": true,
+  "careers_url": "https://legalhero.jobs.personio.de",
+  "ats": {
+   "type": "personio",
+   "slug": "legalhero",
+   "feed_url": "https://legalhero.jobs.personio.de/xml?language=de"
+  },
+  "verified": true,
+  "job_count": 8,
+  "notes": ""
+ },
+ {
+  "name": "lawpilots",
+  "category": "legaltech",
+  "city": "Berlin",
+  "remote_friendly": true,
+  "careers_url": "https://lawpilots.jobs.personio.de",
+  "ats": {
+   "type": "personio",
+   "slug": "lawpilots",
+   "feed_url": "https://lawpilots.jobs.personio.de/xml?language=de"
+  },
+  "verified": true,
+  "job_count": 2,
+  "notes": "Compliance-E-Learning."
+ },
+ {
+  "name": "DataGuard",
+  "category": "legaltech",
+  "city": "München",
+  "remote_friendly": true,
+  "careers_url": "https://jobs.ashbyhq.com/dataguard",
+  "ats": {
+   "type": "ashby",
+   "slug": "dataguard",
+   "feed_url": "https://api.ashbyhq.com/posting-api/job-board/dataguard"
+  },
+  "verified": true,
+  "job_count": 14,
+  "notes": "Datenschutz-/Compliance-Software."
+ },
+ {
+  "name": "heyData",
+  "category": "legaltech",
+  "city": "Berlin",
+  "remote_friendly": true,
+  "careers_url": "https://heydata.teamtailor.com/jobs",
+  "ats": {
+   "type": "teamtailor",
+   "slug": "heydata",
+   "feed_url": "https://heydata.teamtailor.com/jobs.rss"
+  },
+  "verified": true,
+  "job_count": 9,
+  "notes": "Datenschutz-Software, viele 100%-Remote-Stellen und Werkstudenten."
+ },
+ {
+  "name": "PROLIANCE",
+  "category": "legaltech",
+  "city": "München",
+  "remote_friendly": true,
+  "careers_url": "https://proliance.jobs.personio.de",
+  "ats": {
+   "type": "personio",
+   "slug": "proliance",
+   "feed_url": "https://proliance.jobs.personio.de/xml?language=de"
+  },
+  "verified": true,
+  "job_count": 14,
+  "notes": "Datenschutz-Software."
+ },
+ {
+  "name": "Usercentrics",
+  "category": "legaltech",
+  "city": "München",
+  "remote_friendly": true,
+  "careers_url": "https://apply.workable.com/usercentrics/",
+  "ats": {
+   "type": "workable",
+   "slug": "usercentrics",
+   "feed_url": "https://apply.workable.com/api/v1/widget/accounts/usercentrics"
+  },
+  "verified": true,
+  "job_count": 42,
+  "notes": "Consent-Management. Feed am 05.10.2026 mit Status 200 abgerufen; Workable antwortet bei vielen Abrufen schnell mit 429 (Rate-Limit), daher langsam abfragen."
+ },
+ {
+  "name": "Kertos",
+  "category": "legaltech",
+  "city": "München",
+  "remote_friendly": true,
+  "careers_url": "https://kertos.jobs.personio.de",
+  "ats": {
+   "type": "personio",
+   "slug": "kertos",
+   "feed_url": "https://kertos.jobs.personio.de/xml?language=de"
+  },
+  "verified": true,
+  "job_count": 9,
+  "notes": "Datenschutz-/Compliance-Automation."
+ },
+ {
+  "name": "EQS Group",
+  "category": "legaltech",
+  "city": "München",
+  "remote_friendly": true,
+  "careers_url": "https://eqs-group.jobs.personio.de",
+  "ats": {
+   "type": "personio",
+   "slug": "eqs-group",
+   "feed_url": "https://eqs-group.jobs.personio.de/xml?language=de"
+  },
+  "verified": true,
+  "job_count": 8,
+  "notes": "Compliance-/Hinweisgeber-Software."
+ },
+ {
+  "name": "fynk",
+  "category": "legaltech",
+  "city": "Wien",
+  "remote_friendly": true,
+  "careers_url": "https://join.com/companies/fynk",
+  "ats": {
+   "type": "join",
+   "slug": "fynk",
+   "feed_url": "https://join.com/companies/fynk"
+  },
+  "verified": true,
+  "job_count": 0,
+  "notes": "Contract-Management."
+ },
+ {
+  "name": "Skribble",
+  "category": "legaltech",
+  "city": "Zürich",
+  "remote_friendly": true,
+  "careers_url": "https://join.com/companies/skribble",
+  "ats": {
+   "type": "join",
+   "slug": "skribble",
+   "feed_url": "https://join.com/companies/skribble"
+  },
+  "verified": true,
+  "job_count": 1,
+  "notes": "E-Signatur."
+ },
+ {
+  "name": "Jurafuchs",
+  "category": "legaltech",
+  "city": "München",
+  "remote_friendly": true,
+  "careers_url": "https://jurafuchs.jobs.personio.de",
+  "ats": {
+   "type": "personio",
+   "slug": "jurafuchs",
+   "feed_url": "https://jurafuchs.jobs.personio.de/xml?language=de"
+  },
+  "verified": true,
+  "job_count": 1,
+  "notes": "Jura-Lern-App, 100% remote (Legal Engineer)."
+ },
+ {
+  "name": "Hawk",
+  "category": "legaltech",
+  "city": "München",
+  "remote_friendly": true,
+  "careers_url": "https://jobs.ashbyhq.com/hawk",
+  "ats": {
+   "type": "ashby",
+   "slug": "hawk",
+   "feed_url": "https://api.ashbyhq.com/posting-api/job-board/hawk"
+  },
+  "verified": true,
+  "job_count": 18,
+  "notes": "RegTech (AML)."
+ },
+ {
+  "name": "IDnow",
+  "category": "legaltech",
+  "city": "München",
+  "remote_friendly": true,
+  "careers_url": "https://boards.greenhouse.io/idnow",
+  "ats": {
+   "type": "greenhouse",
+   "slug": "idnow",
+   "feed_url": "https://boards-api.greenhouse.io/v1/boards/idnow/jobs"
+  },
+  "verified": true,
+  "job_count": 12,
+  "notes": "RegTech (Identitätsprüfung)."
+ },
+ {
+  "name": "Nect",
+  "category": "legaltech",
+  "city": "Hamburg",
+  "remote_friendly": true,
+  "careers_url": "https://karriere.nect.com",
+  "ats": {
+   "type": "softgarden",
+   "feed_url": "https://karriere.nect.com/jobs.feed.json"
+  },
+  "verified": true,
+  "job_count": 16,
+  "notes": "softgarden-Karriereseite mit schema.org DataFeed."
+ },
+ {
+  "name": "2B Advice",
+  "category": "legaltech",
+  "city": "Bonn",
+  "remote_friendly": true,
+  "careers_url": "https://2b-advice.com/de/jobs-karriere/",
+  "ats": {
+   "type": "html",
+   "feed_url": "https://2b-advice.com/de/jobs-karriere/"
+  },
+  "verified": false,
+  "job_count": null,
+  "notes": "Datenschutz-Software & -Beratung, Bonn."
+ },
+ {
+  "name": "Formalize",
+  "category": "legaltech",
+  "city": "Kopenhagen/remote",
+  "remote_friendly": true,
+  "careers_url": "https://career.formalize.com",
+  "ats": {
+   "type": "teamtailor",
+   "slug": "formalize",
+   "feed_url": "https://formalize.teamtailor.com/jobs.rss"
+  },
+  "verified": true,
+  "job_count": 7,
+  "notes": "Compliance-Software (Hinweisgeber, DSGVO)."
+ },
+ {
+  "name": "OneTrust",
+  "category": "legaltech",
+  "city": "München/remote",
+  "remote_friendly": true,
+  "careers_url": "https://boards.greenhouse.io/onetrust",
+  "ats": {
+   "type": "greenhouse",
+   "slug": "onetrust",
+   "feed_url": "https://boards-api.greenhouse.io/v1/boards/onetrust/jobs"
+  },
+  "verified": true,
+  "job_count": 91,
+  "notes": "Privacy-Software, global."
+ },
+ {
+  "name": "ContractHero",
+  "category": "legaltech",
+  "city": "Berlin",
+  "remote_friendly": true,
+  "careers_url": "https://contracthero-gmbh.jobs.personio.de",
+  "ats": {
+   "type": "personio",
+   "slug": "contracthero-gmbh",
+   "feed_url": "https://contracthero-gmbh.jobs.personio.de/xml?language=de"
+  },
+  "verified": true,
+  "job_count": 1,
+  "notes": "Contract-Management."
+ },
+ {
+  "name": "JUPUS",
+  "category": "legaltech",
+  "city": "Köln",
+  "remote_friendly": true,
+  "careers_url": "https://jobs.ashbyhq.com/jupus",
+  "ats": {
+   "type": "ashby",
+   "slug": "jupus",
+   "feed_url": "https://api.ashbyhq.com/posting-api/job-board/jupus"
+  },
+  "verified": true,
+  "job_count": 4,
+  "notes": "KI für Kanzleien, remote in Deutschland."
+ },
+ {
+  "name": "Secfix",
+  "category": "legaltech",
+  "city": "München",
+  "remote_friendly": true,
+  "careers_url": "https://jobs.ashbyhq.com/secfix",
+  "ats": {
+   "type": "ashby",
+   "slug": "secfix",
+   "feed_url": "https://api.ashbyhq.com/posting-api/job-board/secfix"
+  },
+  "verified": true,
+  "job_count": 16,
+  "notes": "Compliance-Automation (ISO 27001/NIS2)."
+ },
+ {
+  "name": "RA-MICRO",
+  "category": "legaltech",
+  "city": "Berlin",
+  "remote_friendly": true,
+  "careers_url": "https://www.ra-micro.de/unternehmen/ueber-ra-micro/job.html",
+  "ats": {
+   "type": "html",
+   "feed_url": "https://www.ra-micro.de/unternehmen/ueber-ra-micro/job.html"
+  },
+  "verified": false,
+  "job_count": null,
+  "notes": "Kanzleisoftware."
+ },
+ {
+  "name": "Flightright",
+  "category": "legaltech",
+  "city": "Potsdam",
+  "remote_friendly": true,
+  "careers_url": "https://www.flightright.de/jobs",
+  "ats": {
+   "type": "html",
+   "feed_url": "https://www.flightright.de/jobs"
+  },
+  "verified": false,
+  "job_count": null,
+  "notes": "Fluggastrechte."
+ },
+ {
+  "name": "Conny (wenigermiete.de)",
+  "category": "legaltech",
+  "city": "Berlin",
+  "remote_friendly": true,
+  "careers_url": "https://conny.de/careers",
+  "ats": {
+   "type": "html",
+   "feed_url": "https://conny.de/careers"
+  },
+  "verified": false,
+  "job_count": null,
+  "notes": "Verbraucherrecht Legal Tech."
+ },
+ {
+  "name": "helpcheck",
+  "category": "legaltech",
+  "city": "Düsseldorf",
+  "remote_friendly": true,
+  "careers_url": "https://www.helpcheck.de/jobs",
+  "ats": {
+   "type": "html",
+   "feed_url": "https://www.helpcheck.de/jobs"
+  },
+  "verified": false,
+  "job_count": null,
+  "notes": "Verbraucherrecht Legal Tech, Düsseldorf."
+ },
+ {
+  "name": "eRecht24",
+  "category": "legaltech",
+  "city": "remote",
+  "remote_friendly": true,
+  "careers_url": "https://www.e-recht24.de/jobs.html",
+  "ats": {
+   "type": "html",
+   "feed_url": "https://www.e-recht24.de/jobs.html"
+  },
+  "verified": false,
+  "job_count": null,
+  "notes": "Rechtstexte-Generatoren."
+ },
+ {
+  "name": "Taxy.io",
+  "category": "legaltech",
+  "city": "Aachen",
+  "remote_friendly": true,
+  "careers_url": "https://www.taxy.io/karriere",
+  "ats": {
+   "type": "html",
+   "feed_url": "https://www.taxy.io/karriere"
+  },
+  "verified": false,
+  "job_count": null,
+  "notes": "Tax-/Legal-Tech, Aachen (Wix-Seite)."
+ },
+ {
+  "name": "Noxtua (ehem. Xayn)",
+  "category": "legaltech",
+  "city": "Berlin",
+  "remote_friendly": true,
+  "careers_url": "https://www.noxtua.com/",
+  "ats": {
+   "type": "html",
+   "feed_url": "https://www.noxtua.com/"
+  },
+  "verified": false,
+  "job_count": null,
+  "notes": "Legal-AI; keine öffentliche Stellenliste gefunden."
+ },
+ {
+  "name": "Libra AI",
+  "category": "legaltech",
+  "city": "Berlin",
+  "remote_friendly": true,
+  "careers_url": "https://www.libralegal.ai/",
+  "ats": {
+   "type": "html",
+   "feed_url": "https://www.libralegal.ai/"
+  },
+  "verified": false,
+  "job_count": null,
+  "notes": "Legal-AI; ashby 'libra' ist eine andere (indische) Firma."
+ },
+ {
+  "name": "DeepL",
+  "category": "saas",
+  "city": "Köln",
+  "remote_friendly": true,
+  "careers_url": "https://jobs.ashbyhq.com/DeepL",
+  "ats": {
+   "type": "ashby",
+   "slug": "DeepL",
+   "feed_url": "https://api.ashbyhq.com/posting-api/job-board/DeepL"
+  },
+  "verified": true,
+  "job_count": 18,
+  "notes": "Sitz Köln."
+ },
+ {
+  "name": "HRS Group",
+  "category": "saas",
+  "city": "Köln",
+  "remote_friendly": true,
+  "careers_url": "https://jobs.ashbyhq.com/hrs",
+  "ats": {
+   "type": "ashby",
+   "slug": "hrs",
+   "feed_url": "https://api.ashbyhq.com/posting-api/job-board/hrs"
+  },
+  "verified": true,
+  "job_count": 24,
+  "notes": "Sitz Köln."
+ },
+ {
+  "name": "Trusted Shops",
+  "category": "saas",
+  "city": "Köln",
+  "remote_friendly": true,
+  "careers_url": "https://trustedshops.recruitee.com",
+  "ats": {
+   "type": "recruitee",
+   "slug": "trustedshops",
+   "feed_url": "https://trustedshops.recruitee.com/api/offers/"
+  },
+  "verified": true,
+  "job_count": 16,
+  "notes": "Sitz Köln; hatte 'Legal Assistant'."
+ },
+ {
+  "name": "Doinstruct",
+  "category": "saas",
+  "city": "Köln",
+  "remote_friendly": true,
+  "careers_url": "https://jobs.ashbyhq.com/doinstruct",
+  "ats": {
+   "type": "ashby",
+   "slug": "doinstruct",
+   "feed_url": "https://api.ashbyhq.com/posting-api/job-board/doinstruct"
+  },
+  "verified": true,
+  "job_count": 7,
+  "notes": "Remote in Deutschland."
+ },
+ {
+  "name": "Sastrify",
+  "category": "saas",
+  "city": "Köln",
+  "remote_friendly": true,
+  "careers_url": "https://sastrify.jobs.personio.de",
+  "ats": {
+   "type": "personio",
+   "slug": "sastrify",
+   "feed_url": "https://sastrify.jobs.personio.de/xml?language=de"
+  },
+  "verified": true,
+  "job_count": 0,
+  "notes": "Sitz Köln (SaaS-Einkauf)."
+ },
+ {
+  "name": "Lime Technologies (ehem. Userlike)",
+  "category": "saas",
+  "city": "Köln",
+  "remote_friendly": true,
+  "careers_url": "https://jobs.lime-technologies.com/",
+  "ats": {
+   "type": "html",
+   "feed_url": "https://jobs.lime-technologies.com/"
+  },
+  "verified": false,
+  "job_count": null,
+  "notes": ""
+ },
+ {
+  "name": "Cognigy (NICE)",
+  "category": "saas",
+  "city": "Düsseldorf",
+  "remote_friendly": true,
+  "careers_url": "https://www.cognigy.com/careers",
+  "ats": {
+   "type": "html",
+   "feed_url": "https://www.cognigy.com/careers"
+  },
+  "verified": false,
+  "job_count": null,
+  "notes": "Workable-Konto 'cognigy' existiert, aktuell leer – Stellen laufen über NICE."
+ },
+ {
+  "name": "sipgate",
+  "category": "saas",
+  "city": "Düsseldorf",
+  "remote_friendly": false,
+  "careers_url": "https://sipgate.jobs.personio.de",
+  "ats": {
+   "type": "personio",
+   "slug": "sipgate",
+   "feed_url": "https://sipgate.jobs.personio.de/xml?language=de"
+  },
+  "verified": true,
+  "job_count": 3,
+  "notes": ""
+ },
+ {
+  "name": "tonies",
+  "category": "saas",
+  "city": "Düsseldorf",
+  "remote_friendly": true,
+  "careers_url": "https://tonies.jobs.personio.de",
+  "ats": {
+   "type": "personio",
+   "slug": "tonies",
+   "feed_url": "https://tonies.jobs.personio.de/xml?language=de"
+  },
+  "verified": true,
+  "job_count": 13,
+  "notes": ""
+ },
+ {
+  "name": "Ubisoft Blue Byte",
+  "category": "saas",
+  "city": "Düsseldorf",
+  "remote_friendly": false,
+  "careers_url": "https://careers.smartrecruiters.com/Ubisoft2",
+  "ats": {
+   "type": "smartrecruiters",
+   "slug": "ubisoft2",
+   "feed_url": "https://api.smartrecruiters.com/v1/companies/ubisoft2/postings"
+  },
+  "verified": true,
+  "job_count": 333,
+  "notes": "Ubisoft global – nach location.city=Düsseldorf filtern."
+ },
+ {
+  "name": "Scopevisio",
+  "category": "saas",
+  "city": "Bonn",
+  "remote_friendly": false,
+  "careers_url": "https://www.scopevisio.com/unternehmen/karriere/",
+  "ats": {
+   "type": "html",
+   "feed_url": "https://www.scopevisio.com/unternehmen/karriere/"
+  },
+  "verified": false,
+  "job_count": null,
+  "notes": "softgarden eingebunden."
+ },
+ {
+  "name": "Finanzguru",
+  "category": "saas",
+  "city": "Frankfurt",
+  "remote_friendly": true,
+  "careers_url": "https://finanzguru.jobs.personio.de",
+  "ats": {
+   "type": "personio",
+   "slug": "finanzguru",
+   "feed_url": "https://finanzguru.jobs.personio.de/xml?language=de"
+  },
+  "verified": true,
+  "job_count": 5,
+  "notes": ""
+ },
+ {
+  "name": "Personio",
+  "category": "saas",
+  "city": "München",
+  "remote_friendly": true,
+  "careers_url": "https://www.personio.com/about-personio/careers/",
+  "ats": {
+   "type": "personio",
+   "slug": "personio",
+   "feed_url": "https://personio.jobs.personio.de/xml?language=de"
+  },
+  "verified": true,
+  "job_count": 1,
+  "notes": "Eigener Personio-Feed, derzeit kaum gefüllt."
+ },
+ {
+  "name": "Celonis",
+  "category": "saas",
+  "city": "München",
+  "remote_friendly": true,
+  "careers_url": "https://boards.greenhouse.io/celonis",
+  "ats": {
+   "type": "greenhouse",
+   "slug": "celonis",
+   "feed_url": "https://boards-api.greenhouse.io/v1/boards/celonis/jobs"
+  },
+  "verified": true,
+  "job_count": 226,
+  "notes": ""
+ },
+ {
+  "name": "Staffbase",
+  "category": "saas",
+  "city": "Chemnitz",
+  "remote_friendly": true,
+  "careers_url": "https://boards.greenhouse.io/staffbase",
+  "ats": {
+   "type": "greenhouse",
+   "slug": "staffbase",
+   "feed_url": "https://boards-api.greenhouse.io/v1/boards/staffbase/jobs"
+  },
+  "verified": true,
+  "job_count": 24,
+  "notes": "Hatte 'Associate Legal Counsel'."
+ },
+ {
+  "name": "Contentful",
+  "category": "saas",
+  "city": "Berlin",
+  "remote_friendly": true,
+  "careers_url": "https://boards.greenhouse.io/contentful",
+  "ats": {
+   "type": "greenhouse",
+   "slug": "contentful",
+   "feed_url": "https://boards-api.greenhouse.io/v1/boards/contentful/jobs"
+  },
+  "verified": true,
+  "job_count": 21,
+  "notes": ""
+ },
+ {
+  "name": "GetYourGuide",
+  "category": "saas",
+  "city": "Berlin",
+  "remote_friendly": true,
+  "careers_url": "https://boards.greenhouse.io/getyourguide",
+  "ats": {
+   "type": "greenhouse",
+   "slug": "getyourguide",
+   "feed_url": "https://boards-api.greenhouse.io/v1/boards/getyourguide/jobs"
+  },
+  "verified": true,
+  "job_count": 52,
+  "notes": ""
+ },
+ {
+  "name": "N26",
+  "category": "saas",
+  "city": "Berlin",
+  "remote_friendly": true,
+  "careers_url": "https://boards.greenhouse.io/n26",
+  "ats": {
+   "type": "greenhouse",
+   "slug": "n26",
+   "feed_url": "https://boards-api.greenhouse.io/v1/boards/n26/jobs"
+  },
+  "verified": true,
+  "job_count": 50,
+  "notes": "Viele Compliance/AFC-Stellen."
+ },
+ {
+  "name": "Trade Republic",
+  "category": "saas",
+  "city": "Berlin",
+  "remote_friendly": true,
+  "careers_url": "https://boards.greenhouse.io/traderepublicbank",
+  "ats": {
+   "type": "greenhouse",
+   "slug": "traderepublicbank",
+   "feed_url": "https://boards-api.greenhouse.io/v1/boards/traderepublicbank/jobs"
+  },
+  "verified": true,
+  "job_count": 39,
+  "notes": ""
+ },
+ {
+  "name": "SumUp",
+  "category": "saas",
+  "city": "Berlin",
+  "remote_friendly": true,
+  "careers_url": "https://boards.greenhouse.io/sumup",
+  "ats": {
+   "type": "greenhouse",
+   "slug": "sumup",
+   "feed_url": "https://boards-api.greenhouse.io/v1/boards/sumup/jobs"
+  },
+  "verified": true,
+  "job_count": 346,
+  "notes": ""
+ },
+ {
+  "name": "Raisin",
+  "category": "saas",
+  "city": "Berlin",
+  "remote_friendly": true,
+  "careers_url": "https://boards.greenhouse.io/raisin",
+  "ats": {
+   "type": "greenhouse",
+   "slug": "raisin",
+   "feed_url": "https://boards-api.greenhouse.io/v1/boards/raisin/jobs"
+  },
+  "verified": true,
+  "job_count": 35,
+  "notes": ""
+ },
+ {
+  "name": "Solaris",
+  "category": "saas",
+  "city": "Berlin",
+  "remote_friendly": true,
+  "careers_url": "https://boards.greenhouse.io/solarisbank",
+  "ats": {
+   "type": "greenhouse",
+   "slug": "solarisbank",
+   "feed_url": "https://boards-api.greenhouse.io/v1/boards/solarisbank/jobs"
+  },
+  "verified": true,
+  "job_count": 23,
+  "notes": "Hatte AFC-Intern/Werkstudenten."
+ },
+ {
+  "name": "Scalable Capital",
+  "category": "saas",
+  "city": "München",
+  "remote_friendly": true,
+  "careers_url": "https://careers.smartrecruiters.com/ScalableGmbH",
+  "ats": {
+   "type": "smartrecruiters",
+   "slug": "ScalableGmbH",
+   "feed_url": "https://api.smartrecruiters.com/v1/companies/ScalableGmbH/postings"
+  },
+  "verified": true,
+  "job_count": 111,
+  "notes": ""
+ },
+ {
+  "name": "Moss",
+  "category": "saas",
+  "city": "Berlin",
+  "remote_friendly": true,
+  "careers_url": "https://jobs.ashbyhq.com/moss",
+  "ats": {
+   "type": "ashby",
+   "slug": "moss",
+   "feed_url": "https://api.ashbyhq.com/posting-api/job-board/moss"
+  },
+  "verified": true,
+  "job_count": 30,
+  "notes": ""
+ },
+ {
+  "name": "Pliant",
+  "category": "saas",
+  "city": "Berlin",
+  "remote_friendly": true,
+  "careers_url": "https://jobs.ashbyhq.com/pliant",
+  "ats": {
+   "type": "ashby",
+   "slug": "pliant",
+   "feed_url": "https://api.ashbyhq.com/posting-api/job-board/pliant"
+  },
+  "verified": true,
+  "job_count": 39,
+  "notes": ""
+ },
+ {
+  "name": "Billie",
+  "category": "saas",
+  "city": "Berlin",
+  "remote_friendly": true,
+  "careers_url": "https://jobs.ashbyhq.com/billie",
+  "ats": {
+   "type": "ashby",
+   "slug": "billie",
+   "feed_url": "https://api.ashbyhq.com/posting-api/job-board/billie"
+  },
+  "verified": true,
+  "job_count": 1,
+  "notes": ""
+ },
+ {
+  "name": "Mondu",
+  "category": "saas",
+  "city": "Berlin",
+  "remote_friendly": true,
+  "careers_url": "https://apply.workable.com/mondu/",
+  "ats": {
+   "type": "workable",
+   "slug": "mondu",
+   "feed_url": "https://apply.workable.com/api/v1/widget/accounts/mondu"
+  },
+  "verified": true,
+  "job_count": 2,
+  "notes": "Feed am 05.10.2026 mit Status 200 abgerufen; Workable antwortet bei vielen Abrufen schnell mit 429 (Rate-Limit), daher langsam abfragen."
+ },
+ {
+  "name": "Upvest",
+  "category": "saas",
+  "city": "Berlin",
+  "remote_friendly": true,
+  "careers_url": "https://jobs.ashbyhq.com/upvest",
+  "ats": {
+   "type": "ashby",
+   "slug": "upvest",
+   "feed_url": "https://api.ashbyhq.com/posting-api/job-board/upvest"
+  },
+  "verified": true,
+  "job_count": 15,
+  "notes": "Hatte 'Legal Analyst/Research Associate (part-time)'."
+ },
+ {
+  "name": "CLARK",
+  "category": "saas",
+  "city": "Frankfurt",
+  "remote_friendly": true,
+  "careers_url": "https://clark.jobs.personio.de",
+  "ats": {
+   "type": "personio",
+   "slug": "clark",
+   "feed_url": "https://clark.jobs.personio.de/xml?language=de"
+  },
+  "verified": true,
+  "job_count": 4,
+  "notes": ""
+ },
+ {
+  "name": "ottonova",
+  "category": "saas",
+  "city": "München",
+  "remote_friendly": true,
+  "careers_url": "https://ottonova.jobs.personio.de",
+  "ats": {
+   "type": "personio",
+   "slug": "ottonova",
+   "feed_url": "https://ottonova.jobs.personio.de/xml?language=de"
+  },
+  "verified": true,
+  "job_count": 9,
+  "notes": ""
+ },
+ {
+  "name": "Babbel",
+  "category": "saas",
+  "city": "Berlin",
+  "remote_friendly": true,
+  "careers_url": "https://jobs.ashbyhq.com/babbel",
+  "ats": {
+   "type": "ashby",
+   "slug": "babbel",
+   "feed_url": "https://api.ashbyhq.com/posting-api/job-board/babbel"
+  },
+  "verified": true,
+  "job_count": 13,
+  "notes": ""
+ },
+ {
+  "name": "Leapsome",
+  "category": "saas",
+  "city": "Berlin",
+  "remote_friendly": true,
+  "careers_url": "https://www.leapsome.com/careers",
+  "ats": {
+   "type": "html",
+   "feed_url": "https://www.leapsome.com/careers"
+  },
+  "verified": false,
+  "job_count": null,
+  "notes": "Ashby-Embed unter eigener Domain jobs.leapsome.com; öffentliche Ashby-API für Slug nicht erreichbar."
+ },
+ {
+  "name": "Workpath",
+  "category": "saas",
+  "city": "München",
+  "remote_friendly": true,
+  "careers_url": "https://workpath.jobs.personio.de",
+  "ats": {
+   "type": "personio",
+   "slug": "workpath",
+   "feed_url": "https://workpath.jobs.personio.de/xml?language=de"
+  },
+  "verified": true,
+  "job_count": 1,
+  "notes": ""
+ },
+ {
+  "name": "Parloa",
+  "category": "saas",
+  "city": "Berlin",
+  "remote_friendly": true,
+  "careers_url": "https://boards.greenhouse.io/parloa",
+  "ats": {
+   "type": "greenhouse",
+   "slug": "parloa",
+   "feed_url": "https://boards-api.greenhouse.io/v1/boards/parloa/jobs"
+  },
+  "verified": true,
+  "job_count": 50,
+  "notes": ""
+ },
+ {
+  "name": "Aleph Alpha",
+  "category": "saas",
+  "city": "Heidelberg",
+  "remote_friendly": true,
+  "careers_url": "https://jobs.ashbyhq.com/AlephAlpha",
+  "ats": {
+   "type": "ashby",
+   "slug": "AlephAlpha",
+   "feed_url": "https://api.ashbyhq.com/posting-api/job-board/AlephAlpha"
+  },
+  "verified": true,
+  "job_count": 1,
+  "notes": ""
+ },
+ {
+  "name": "Langdock",
+  "category": "saas",
+  "city": "Berlin",
+  "remote_friendly": true,
+  "careers_url": "https://jobs.ashbyhq.com/langdock",
+  "ats": {
+   "type": "ashby",
+   "slug": "langdock",
+   "feed_url": "https://api.ashbyhq.com/posting-api/job-board/langdock"
+  },
+  "verified": true,
+  "job_count": 26,
+  "notes": ""
+ },
+ {
+  "name": "n8n",
+  "category": "saas",
+  "city": "Berlin",
+  "remote_friendly": true,
+  "careers_url": "https://jobs.ashbyhq.com/n8n",
+  "ats": {
+   "type": "ashby",
+   "slug": "n8n",
+   "feed_url": "https://api.ashbyhq.com/posting-api/job-board/n8n"
+  },
+  "verified": true,
+  "job_count": 35,
+  "notes": "Remote-first."
+ },
+ {
+  "name": "GitLab",
+  "category": "saas",
+  "city": "remote",
+  "remote_friendly": true,
+  "careers_url": "https://boards.greenhouse.io/gitlab",
+  "ats": {
+   "type": "greenhouse",
+   "slug": "gitlab",
+   "feed_url": "https://boards-api.greenhouse.io/v1/boards/gitlab/jobs"
+  },
+  "verified": true,
+  "job_count": 210,
+  "notes": "All-remote, stellt in Deutschland ein."
+ },
+ {
+  "name": "Oyster HR",
+  "category": "saas",
+  "city": "remote",
+  "remote_friendly": true,
+  "careers_url": "https://jobs.ashbyhq.com/oyster",
+  "ats": {
+   "type": "ashby",
+   "slug": "oyster",
+   "feed_url": "https://api.ashbyhq.com/posting-api/job-board/oyster"
+  },
+  "verified": true,
+  "job_count": 23,
+  "notes": "All-remote."
+ },
+ {
+  "name": "Tourlane",
+  "category": "saas",
+  "city": "Berlin",
+  "remote_friendly": true,
+  "careers_url": "https://jobs.ashbyhq.com/tourlane",
+  "ats": {
+   "type": "ashby",
+   "slug": "tourlane",
+   "feed_url": "https://api.ashbyhq.com/posting-api/job-board/tourlane"
+  },
+  "verified": true,
+  "job_count": 8,
+  "notes": ""
+ },
+ {
+  "name": "commercetools",
+  "category": "saas",
+  "city": "München",
+  "remote_friendly": true,
+  "careers_url": "https://boards.greenhouse.io/commercetools",
+  "ats": {
+   "type": "greenhouse",
+   "slug": "commercetools",
+   "feed_url": "https://boards-api.greenhouse.io/v1/boards/commercetools/jobs"
+  },
+  "verified": true,
+  "job_count": 36,
+  "notes": ""
+ },
+ {
+  "name": "xentral",
+  "category": "saas",
+  "city": "Augsburg",
+  "remote_friendly": true,
+  "careers_url": "https://jobs.eu.lever.co/xentral",
+  "ats": {
+   "type": "lever_eu",
+   "slug": "xentral",
+   "feed_url": "https://api.eu.lever.co/v0/postings/xentral?mode=json"
+  },
+  "verified": true,
+  "job_count": 1,
+  "notes": ""
+ },
+ {
+  "name": "Shopware",
+  "category": "saas",
+  "city": "Schöppingen",
+  "remote_friendly": true,
+  "careers_url": "https://shopwareag.recruitee.com",
+  "ats": {
+   "type": "recruitee",
+   "slug": "shopwareag",
+   "feed_url": "https://shopwareag.recruitee.com/api/offers/"
+  },
+  "verified": true,
+  "job_count": 9,
+  "notes": ""
+ },
+ {
+  "name": "Grover",
+  "category": "saas",
+  "city": "Berlin",
+  "remote_friendly": true,
+  "careers_url": "https://boards.greenhouse.io/grover",
+  "ats": {
+   "type": "greenhouse",
+   "slug": "grover",
+   "feed_url": "https://boards-api.greenhouse.io/v1/boards/grover/jobs"
+  },
+  "verified": true,
+  "job_count": 3,
+  "notes": ""
+ },
+ {
+  "name": "Enpal",
+  "category": "saas",
+  "city": "Berlin",
+  "remote_friendly": true,
+  "careers_url": "https://jobs.ashbyhq.com/enpal",
+  "ats": {
+   "type": "ashby",
+   "slug": "enpal",
+   "feed_url": "https://api.ashbyhq.com/posting-api/job-board/enpal"
+  },
+  "verified": true,
+  "job_count": 146,
+  "notes": "Hatte '(Junior) Legal Counsel Corporate'."
+ },
+ {
+  "name": "1KOMMA5°",
+  "category": "saas",
+  "city": "Hamburg",
+  "remote_friendly": true,
+  "careers_url": "https://1komma5grad.jobs.personio.de",
+  "ats": {
+   "type": "personio",
+   "slug": "1komma5grad",
+   "feed_url": "https://1komma5grad.jobs.personio.de/xml?language=de"
+  },
+  "verified": true,
+  "job_count": 323,
+  "notes": ""
+ },
+ {
+  "name": "Qonto",
+  "category": "saas",
+  "city": "Berlin/Paris",
+  "remote_friendly": true,
+  "careers_url": "https://jobs.lever.co/qonto",
+  "ats": {
+   "type": "lever",
+   "slug": "qonto",
+   "feed_url": "https://api.lever.co/v0/postings/qonto?mode=json"
+  },
+  "verified": true,
+  "job_count": 41,
+  "notes": "Derselbe Bestand auch unter ashby 'qonto'."
+ },
+ {
+  "name": "Pleo",
+  "category": "saas",
+  "city": "remote",
+  "remote_friendly": true,
+  "careers_url": "https://jobs.ashbyhq.com/pleo",
+  "ats": {
+   "type": "ashby",
+   "slug": "pleo",
+   "feed_url": "https://api.ashbyhq.com/posting-api/job-board/pleo"
+  },
+  "verified": true,
+  "job_count": 29,
+  "notes": ""
+ },
+ {
+  "name": "Agicap",
+  "category": "saas",
+  "city": "Berlin/remote",
+  "remote_friendly": true,
+  "careers_url": "https://jobs.lever.co/agicap",
+  "ats": {
+   "type": "lever",
+   "slug": "agicap",
+   "feed_url": "https://api.lever.co/v0/postings/agicap?mode=json"
+  },
+  "verified": true,
+  "job_count": 32,
+  "notes": ""
+ },
+ {
+  "name": "Doctolib",
+  "category": "saas",
+  "city": "Berlin",
+  "remote_friendly": true,
+  "careers_url": "https://boards.greenhouse.io/doctolib",
+  "ats": {
+   "type": "greenhouse",
+   "slug": "doctolib",
+   "feed_url": "https://boards-api.greenhouse.io/v1/boards/doctolib/jobs"
+  },
+  "verified": true,
+  "job_count": 155,
+  "notes": ""
+ },
+ {
+  "name": "Payhawk",
+  "category": "saas",
+  "city": "Berlin/remote",
+  "remote_friendly": true,
+  "careers_url": "https://boards.greenhouse.io/payhawkio",
+  "ats": {
+   "type": "greenhouse",
+   "slug": "payhawkio",
+   "feed_url": "https://boards-api.greenhouse.io/v1/boards/payhawkio/jobs"
+  },
+  "verified": true,
+  "job_count": 49,
+  "notes": "personio 'payhawk' ist ein Demo-Konto."
+ },
+ {
+  "name": "Forto",
+  "category": "saas",
+  "city": "Berlin",
+  "remote_friendly": true,
+  "careers_url": "https://jobs.ashbyhq.com/forto",
+  "ats": {
+   "type": "ashby",
+   "slug": "forto",
+   "feed_url": "https://api.ashbyhq.com/posting-api/job-board/forto"
+  },
+  "verified": true,
+  "job_count": 6,
+  "notes": ""
+ },
+ {
+  "name": "Miro",
+  "category": "saas",
+  "city": "Berlin/Amsterdam",
+  "remote_friendly": true,
+  "careers_url": "https://jobs.ashbyhq.com/miro",
+  "ats": {
+   "type": "ashby",
+   "slug": "miro",
+   "feed_url": "https://api.ashbyhq.com/posting-api/job-board/miro"
+  },
+  "verified": true,
+  "job_count": 26,
+  "notes": ""
+ },
+ {
+  "name": "Taxdoo",
+  "category": "saas",
+  "city": "Hamburg",
+  "remote_friendly": true,
+  "careers_url": "https://taxdoo.jobs.personio.de",
+  "ats": {
+   "type": "personio",
+   "slug": "taxdoo",
+   "feed_url": "https://taxdoo.jobs.personio.de/xml?language=de"
+  },
+  "verified": true,
+  "job_count": 8,
+  "notes": ""
+ },
+ {
+  "name": "Tanso",
+  "category": "saas",
+  "city": "München",
+  "remote_friendly": true,
+  "careers_url": "https://tanso.jobs.personio.de",
+  "ats": {
+   "type": "personio",
+   "slug": "tanso",
+   "feed_url": "https://tanso.jobs.personio.de/xml?language=de"
+  },
+  "verified": true,
+  "job_count": 4,
+  "notes": ""
+ },
+ {
+  "name": "GoodHabitz",
+  "category": "saas",
+  "city": "Köln/Eindhoven",
+  "remote_friendly": true,
+  "careers_url": "https://apply.workable.com/goodhabitz/",
+  "ats": {
+   "type": "workable",
+   "slug": "goodhabitz",
+   "feed_url": "https://apply.workable.com/api/v1/widget/accounts/goodhabitz"
+  },
+  "verified": true,
+  "job_count": 18,
+  "notes": "Feed am 05.10.2026 mit Status 200 abgerufen; Workable antwortet bei vielen Abrufen schnell mit 429 (Rate-Limit), daher langsam abfragen."
+ },
+ {
+  "name": "TeamViewer",
+  "category": "saas",
+  "city": "Göppingen",
+  "remote_friendly": true,
+  "careers_url": "https://careers.teamviewer.com",
+  "ats": {
+   "type": "teamtailor",
+   "slug": "teamviewer",
+   "feed_url": "https://teamviewer.teamtailor.com/jobs.rss"
+  },
+  "verified": true,
+  "job_count": 100,
+  "notes": "Teamtailor-RSS liefert max. 100 Einträge."
+ },
+ {
+  "name": "Exasol",
+  "category": "saas",
+  "city": "Nürnberg",
+  "remote_friendly": true,
+  "careers_url": "https://careers.exasol.com",
+  "ats": {
+   "type": "teamtailor",
+   "slug": "exasol",
+   "feed_url": "https://exasol.teamtailor.com/jobs.rss"
+  },
+  "verified": true,
+  "job_count": 4,
+  "notes": ""
+ },
+ {
+  "name": "Bitpanda",
+  "category": "saas",
+  "city": "Wien",
+  "remote_friendly": true,
+  "careers_url": "https://boards.greenhouse.io/bitpanda",
+  "ats": {
+   "type": "greenhouse",
+   "slug": "bitpanda",
+   "feed_url": "https://boards-api.greenhouse.io/v1/boards/bitpanda/jobs"
+  },
+  "verified": true,
+  "job_count": 21,
+  "notes": ""
+ },
+ {
+  "name": "Delivery Hero",
+  "category": "saas",
+  "city": "Berlin",
+  "remote_friendly": true,
+  "careers_url": "https://careers.smartrecruiters.com/DeliveryHero",
+  "ats": {
+   "type": "smartrecruiters",
+   "slug": "deliveryhero",
+   "feed_url": "https://api.smartrecruiters.com/v1/companies/deliveryhero/postings"
+  },
+  "verified": true,
+  "job_count": 969,
+  "notes": ""
+ },
+ {
+  "name": "HelloFresh",
+  "category": "saas",
+  "city": "Berlin",
+  "remote_friendly": true,
+  "careers_url": "https://boards.greenhouse.io/hellofresh",
+  "ats": {
+   "type": "greenhouse",
+   "slug": "hellofresh",
+   "feed_url": "https://boards-api.greenhouse.io/v1/boards/hellofresh/jobs"
+  },
+  "verified": true,
+  "job_count": 412,
+  "notes": ""
+ },
+ {
+  "name": "AUTO1 Group",
+  "category": "saas",
+  "city": "Berlin",
+  "remote_friendly": true,
+  "careers_url": "https://careers.smartrecruiters.com/AUTO1",
+  "ats": {
+   "type": "smartrecruiters",
+   "slug": "auto1",
+   "feed_url": "https://api.smartrecruiters.com/v1/companies/auto1/postings"
+  },
+  "verified": true,
+  "job_count": 648,
+  "notes": ""
+ },
+ {
+  "name": "Flix",
+  "category": "saas",
+  "city": "München",
+  "remote_friendly": true,
+  "careers_url": "https://boards.greenhouse.io/flix",
+  "ats": {
+   "type": "greenhouse",
+   "slug": "flix",
+   "feed_url": "https://boards-api.greenhouse.io/v1/boards/flix/jobs"
+  },
+  "verified": true,
+  "job_count": 151,
+  "notes": ""
+ },
+ {
+  "name": "Helsing",
+  "category": "saas",
+  "city": "München",
+  "remote_friendly": false,
+  "careers_url": "https://boards.greenhouse.io/helsing",
+  "ats": {
+   "type": "greenhouse",
+   "slug": "helsing",
+   "feed_url": "https://boards-api.greenhouse.io/v1/boards/helsing/jobs"
+  },
+  "verified": true,
+  "job_count": 167,
+  "notes": "Gleicher Bestand auch unter ashby 'helsing'."
+ },
+ {
+  "name": "Taxfix",
+  "category": "saas",
+  "city": "Berlin",
+  "remote_friendly": true,
+  "careers_url": "https://taxfix.de/en/careers/",
+  "ats": {
+   "type": "html",
+   "feed_url": "https://taxfix.de/en/careers/"
+  },
+  "verified": false,
+  "job_count": null,
+  "notes": ""
+ },
+ {
+  "name": "sennder",
+  "category": "saas",
+  "city": "Berlin",
+  "remote_friendly": true,
+  "careers_url": "https://www.sennder.com/career",
+  "ats": {
+   "type": "html",
+   "feed_url": "https://www.sennder.com/career"
+  },
+  "verified": false,
+  "job_count": null,
+  "notes": ""
+ },
+ {
+  "name": "Productsup",
+  "category": "saas",
+  "city": "Berlin",
+  "remote_friendly": true,
+  "careers_url": "https://productsup.careers.hibob.com/",
+  "ats": {
+   "type": "html",
+   "feed_url": "https://productsup.careers.hibob.com/"
+  },
+  "verified": false,
+  "job_count": null,
+  "notes": "HiBob Careers."
+ },
+ {
+  "name": "sevDesk",
+  "category": "saas",
+  "city": "Offenburg",
+  "remote_friendly": true,
+  "careers_url": "https://sevdesk.de/karriere/",
+  "ats": {
+   "type": "html",
+   "feed_url": "https://sevdesk.de/karriere/"
+  },
+  "verified": false,
+  "job_count": null,
+  "notes": ""
+ },
+ {
+  "name": "Utimaco",
+  "category": "saas",
+  "city": "Aachen",
+  "remote_friendly": false,
+  "careers_url": "https://utimaco.com/careers",
+  "ats": {
+   "type": "html",
+   "feed_url": "https://utimaco.com/careers"
+  },
+  "verified": false,
+  "job_count": null,
+  "notes": ""
+ },
+ {
+  "name": "Mambu",
+  "category": "saas",
+  "city": "Berlin",
+  "remote_friendly": true,
+  "careers_url": "https://mambu.com/en/careers",
+  "ats": {
+   "type": "html",
+   "feed_url": "https://mambu.com/en/careers"
+  },
+  "verified": false,
+  "job_count": null,
+  "notes": "iCIMS (careers-mambu.icims.com)."
+ },
+ {
+  "name": "KPMG Law",
+  "category": "beratung",
+  "city": "Köln/Düsseldorf",
+  "remote_friendly": false,
+  "careers_url": "https://jobs.kpmg.de/kpmgLAW",
+  "ats": {
+   "type": "successfactors_rss",
+   "host": "jobs.kpmg.de",
+   "feed_url": "https://jobs.kpmg.de/services/rss/job/?locale=de_DE&keywords="
+  },
+  "verified": true,
+  "job_count": 20,
+  "notes": "KPMG-weit; RSS nur 20 neueste – keywords=Law/Werkstudent."
+ },
+ {
+  "name": "PwC Legal",
+  "category": "beratung",
+  "city": "Düsseldorf/Köln",
+  "remote_friendly": false,
+  "careers_url": "https://jobs.pwc.de/de/en",
+  "ats": {
+   "type": "html",
+   "feed_url": "https://jobs.pwc.de/de/en"
+  },
+  "verified": false,
+  "job_count": null,
+  "notes": "Phenom People."
+ },
+ {
+  "name": "EY Law",
+  "category": "beratung",
+  "city": "Köln/Düsseldorf",
+  "remote_friendly": false,
+  "careers_url": "https://careers.ey.com",
+  "ats": {
+   "type": "successfactors_rss",
+   "host": "careers.ey.com",
+   "feed_url": "https://careers.ey.com/services/rss/job/?locale=de_DE&keywords="
+  },
+  "verified": true,
+  "job_count": 20,
+  "notes": "EY global; RSS nur 20 neueste – keywords+Ort nötig."
+ },
+ {
+  "name": "Deloitte Legal",
+  "category": "beratung",
+  "city": "Düsseldorf/Köln",
+  "remote_friendly": false,
+  "careers_url": "https://www.deloitte.com/de/de/careers.html",
+  "ats": {
+   "type": "html",
+   "feed_url": "https://www.deloitte.com/de/de/careers.html"
+  },
+  "verified": false,
+  "job_count": null,
+  "notes": "Avature."
+ },
+ {
+  "name": "BDO Legal",
+  "category": "beratung",
+  "city": "Düsseldorf/Köln",
+  "remote_friendly": false,
+  "careers_url": "https://jobs.bdo.de",
+  "ats": {
+   "type": "successfactors_rss",
+   "host": "jobs.bdo.de",
+   "feed_url": "https://jobs.bdo.de/services/rss/job/?locale=de_DE&keywords="
+  },
+  "verified": true,
+  "job_count": 20,
+  "notes": ""
+ },
+ {
+  "name": "Grant Thornton",
+  "category": "beratung",
+  "city": "Düsseldorf/Köln",
+  "remote_friendly": false,
+  "careers_url": "https://www.grantthornton.de/karriere/",
+  "ats": {
+   "type": "rss",
+   "feed_url": "https://gtde-career.talent-soft.com/handlers/offerRss.ashx?LCID=1031"
+  },
+  "verified": true,
+  "job_count": 20,
+  "notes": "Talentsoft-RSS."
+ },
+ {
+  "name": "Baker Tilly",
+  "category": "beratung",
+  "city": "Düsseldorf",
+  "remote_friendly": false,
+  "careers_url": "https://karriere.bakertilly.de/",
+  "ats": {
+   "type": "rss",
+   "feed_url": "https://karriere.bakertilly.de/feed.rss"
+  },
+  "verified": true,
+  "job_count": 60,
+  "notes": "RSS der eigenen Karriereseite."
+ },
+ {
+  "name": "Ebner Stolz",
+  "category": "beratung",
+  "city": "Köln/Bonn",
+  "remote_friendly": false,
+  "careers_url": "https://jobs.ebnerstolz.de/de/jobs",
+  "ats": {
+   "type": "html",
+   "feed_url": "https://jobs.ebnerstolz.de/de/jobs"
+  },
+  "verified": false,
+  "job_count": null,
+  "notes": ""
+ },
+ {
+  "name": "Rödl & Partner",
+  "category": "beratung",
+  "city": "Köln",
+  "remote_friendly": false,
+  "careers_url": "https://karriere.roedl.de/",
+  "ats": {
+   "type": "html",
+   "feed_url": "https://karriere.roedl.de/"
+  },
+  "verified": false,
+  "job_count": null,
+  "notes": ""
+ },
+ {
+  "name": "Forvis Mazars",
+  "category": "beratung",
+  "city": "Düsseldorf/Köln",
+  "remote_friendly": false,
+  "careers_url": "https://boards.greenhouse.io/forvismazars",
+  "ats": {
+   "type": "greenhouse",
+   "slug": "forvismazars",
+   "feed_url": "https://boards-api.greenhouse.io/v1/boards/forvismazars/jobs"
+  },
+  "verified": true,
+  "job_count": 161,
+  "notes": "Deutsche Gesellschaft (u.a. Wirtschaftsforensik/Compliance)."
+ },
+ {
+  "name": "WTS",
+  "category": "beratung",
+  "city": "Köln/Düsseldorf",
+  "remote_friendly": false,
+  "careers_url": "https://www.wts.com/de-de/karriere",
+  "ats": {
+   "type": "html",
+   "feed_url": "https://www.wts.com/de-de/karriere"
+  },
+  "verified": false,
+  "job_count": null,
+  "notes": "Seite blockt Bots."
+ },
+ {
+  "name": "ETL Global",
+  "category": "beratung",
+  "city": "Köln/Essen",
+  "remote_friendly": false,
+  "careers_url": "https://karriere.etl.de/",
+  "ats": {
+   "type": "html",
+   "feed_url": "https://karriere.etl.de/"
+  },
+  "verified": false,
+  "job_count": null,
+  "notes": ""
+ },
+ {
+  "name": "Dornbach",
+  "category": "beratung",
+  "city": "Köln/Bonn",
+  "remote_friendly": false,
+  "careers_url": "https://karriere.dornbach.de",
+  "ats": {
+   "type": "html",
+   "feed_url": "https://karriere.dornbach.de"
+  },
+  "verified": false,
+  "job_count": null,
+  "notes": "rexx (dornbach-portal.rexx-recruitment.com)."
+ },
+ {
+  "name": "intersoft consulting",
+  "category": "beratung",
+  "city": "Köln/remote",
+  "remote_friendly": true,
+  "careers_url": "https://www.intersoft-consulting.de/karriere/",
+  "ats": {
+   "type": "html",
+   "feed_url": "https://www.intersoft-consulting.de/karriere/"
+  },
+  "verified": false,
+  "job_count": null,
+  "notes": "Datenschutzberatung."
+ },
+ {
+  "name": "DSN group (datenschutz nord)",
+  "category": "beratung",
+  "city": "Bremen/Köln",
+  "remote_friendly": true,
+  "careers_url": "https://www.dsn-group.de/karriere/arbeiten-bei-der-dsn-group",
+  "ats": {
+   "type": "html",
+   "feed_url": "https://www.dsn-group.de/karriere/arbeiten-bei-der-dsn-group"
+  },
+  "verified": false,
+  "job_count": null,
+  "notes": "rexx."
+ },
+ {
+  "name": "UIMC",
+  "category": "beratung",
+  "city": "Wuppertal",
+  "remote_friendly": true,
+  "careers_url": "https://www.uimc.de/karriere/stellenangebote/",
+  "ats": {
+   "type": "html",
+   "feed_url": "https://www.uimc.de/karriere/stellenangebote/"
+  },
+  "verified": false,
+  "job_count": null,
+  "notes": "Datenschutzberatung."
+ },
+ {
+  "name": "DATAKONTEXT",
+  "category": "beratung",
+  "city": "Frechen",
+  "remote_friendly": false,
+  "careers_url": "https://www.datakontext.com/karriere",
+  "ats": {
+   "type": "successfactors_rss",
+   "host": "karriere.swmh.de",
+   "feed_url": "https://karriere.swmh.de/services/rss/job/?locale=de_DE&keywords="
+  },
+  "verified": true,
+  "job_count": 11,
+  "notes": "Datenschutz-Fachverlag/Seminare in Frechen; Stellen im SWMH-Portal (Konzern)."
+ },
+ {
+  "name": "audatis",
+  "category": "beratung",
+  "city": "Herford/remote",
+  "remote_friendly": true,
+  "careers_url": "https://audatis-group.jobs.personio.de",
+  "ats": {
+   "type": "personio",
+   "slug": "audatis-group",
+   "feed_url": "https://audatis-group.jobs.personio.de/xml?language=de"
+  },
+  "verified": true,
+  "job_count": 5,
+  "notes": "Datenschutz/Infosec."
+ },
+ {
+  "name": "activeMind",
+  "category": "beratung",
+  "city": "München/remote",
+  "remote_friendly": true,
+  "careers_url": "https://activemind.jobs.personio.de",
+  "ats": {
+   "type": "personio",
+   "slug": "activemind",
+   "feed_url": "https://activemind.jobs.personio.de/xml?language=de"
+  },
+  "verified": true,
+  "job_count": 10,
+  "notes": "Datenschutzberatung."
+ },
+ {
+  "name": "Accenture",
+  "category": "beratung",
+  "city": "Düsseldorf/Köln",
+  "remote_friendly": false,
+  "careers_url": "https://accenture.wd103.myworkdayjobs.com/AccentureCareers",
+  "ats": {
+   "type": "workday",
+   "slug": "accenture",
+   "host": "accenture.wd103.myworkdayjobs.com",
+   "site": "AccentureCareers",
+   "feed_url": "https://accenture.wd103.myworkdayjobs.com/wday/cxs/accenture/AccentureCareers/jobs",
+   "method": "POST"
+  },
+  "verified": true,
+  "job_count": 2000,
+  "notes": "Global, total auf 2000 gedeckelt – searchText nutzen."
+ },
+ {
+  "name": "Capgemini",
+  "category": "beratung",
+  "city": "Köln/Düsseldorf",
+  "remote_friendly": false,
+  "careers_url": "https://www.capgemini.com/de-de/karriere/",
+  "ats": {
+   "type": "html",
+   "feed_url": "https://www.capgemini.com/de-de/karriere/"
+  },
+  "verified": false,
+  "job_count": null,
+  "notes": "SuccessFactors (company=capgemitecP3)."
+ },
+ {
+  "name": "Protiviti",
+  "category": "beratung",
+  "city": "Düsseldorf",
+  "remote_friendly": false,
+  "careers_url": "https://protiviti.recruitee.com",
+  "ats": {
+   "type": "recruitee",
+   "slug": "protiviti",
+   "feed_url": "https://protiviti.recruitee.com/api/offers/"
+  },
+  "verified": true,
+  "job_count": 5,
+  "notes": "Deutsche Protiviti-Stellen."
+ },
+ {
+  "name": "FTI Consulting",
+  "category": "beratung",
+  "city": "Düsseldorf",
+  "remote_friendly": false,
+  "careers_url": "https://www.fticonsulting.com/careers",
+  "ats": {
+   "type": "html",
+   "feed_url": "https://www.fticonsulting.com/careers"
+  },
+  "verified": false,
+  "job_count": null,
+  "notes": ""
+ },
+ {
+  "name": "Kroll",
+  "category": "beratung",
+  "city": "Frankfurt",
+  "remote_friendly": false,
+  "careers_url": "https://careers.kroll.com/en",
+  "ats": {
+   "type": "html",
+   "feed_url": "https://careers.kroll.com/en"
+  },
+  "verified": false,
+  "job_count": null,
+  "notes": ""
+ },
+ {
+  "name": "Solidaris",
+  "category": "beratung",
+  "city": "Köln",
+  "remote_friendly": false,
+  "careers_url": "https://karriere.solidaris.de/stellenangebote",
+  "ats": {
+   "type": "html",
+   "feed_url": "https://karriere.solidaris.de/stellenangebote"
+  },
+  "verified": false,
+  "job_count": null,
+  "notes": ""
+ },
+ {
+  "name": "Curacon",
+  "category": "beratung",
+  "city": "Düsseldorf/Köln",
+  "remote_friendly": false,
+  "careers_url": "https://www.curacon.de/karriere-bei-curacon/karriere-portal",
+  "ats": {
+   "type": "html",
+   "feed_url": "https://www.curacon.de/karriere-bei-curacon/karriere-portal"
+  },
+  "verified": false,
+  "job_count": null,
+  "notes": ""
+ },
+ {
+  "name": "dhpg",
+  "category": "beratung",
+  "city": "Bonn",
+  "remote_friendly": false,
+  "careers_url": "https://dhpg.jobs.personio.de",
+  "ats": {
+   "type": "personio",
+   "slug": "dhpg",
+   "feed_url": "https://dhpg.jobs.personio.de/xml?language=de"
+  },
+  "verified": true,
+  "job_count": 122,
+  "notes": "Sitz Bonn."
+ },
+ {
+  "name": "Ecovis",
+  "category": "beratung",
+  "city": "Düsseldorf/Köln",
+  "remote_friendly": false,
+  "careers_url": "https://karriere.ecovis.com",
+  "ats": {
+   "type": "html",
+   "feed_url": "https://karriere.ecovis.com"
+  },
+  "verified": false,
+  "job_count": null,
+  "notes": ""
+ },
+ {
+  "name": "Robin Data",
+  "category": "beratung",
+  "city": "Merseburg/remote",
+  "remote_friendly": true,
+  "careers_url": "https://www.robin-data.io/karriere",
+  "ats": {
+   "type": "html",
+   "feed_url": "https://www.robin-data.io/karriere"
+  },
+  "verified": false,
+  "job_count": null,
+  "notes": "Datenschutz."
+ }
+]

@@ -1,0 +1,161 @@
+// Ablage: Postgres auf Railway (DATABASE_URL), lokal eine JSON-Datei zum Testen.
+import { readFile, writeFile, mkdir } from 'node:fs/promises';
+import { dirname } from 'node:path';
+import pg from 'pg';
+import { cfg } from './config.ts';
+import type { StoredJob } from './types.ts';
+
+export interface Subscriber { chat_id: string; name: string | null; paused: boolean }
+
+export interface Store {
+  init(): Promise<void>;
+  known(id: string, key: string): Promise<boolean>;
+  saveJob(job: StoredJob & { dedupe_key: string }): Promise<void>;
+  getJob(id: string): Promise<StoredJob | null>;
+  pending(limit: number): Promise<StoredJob[]>;
+  pendingCount(): Promise<number>;
+  markNotified(id: string): Promise<void>;
+  setFeedback(id: string, feedback: string): Promise<void>;
+  recentFeedback(n: number): Promise<{ title: string; company: string; feedback: string }[]>;
+  subscribers(): Promise<Subscriber[]>;
+  addSubscriber(chatId: string, name: string | null): Promise<void>;
+  setPaused(chatId: string, paused: boolean): Promise<void>;
+  kvGet(key: string): Promise<string | null>;
+  kvSet(key: string, value: string): Promise<void>;
+  stats(): Promise<Record<string, number>>;
+}
+
+const now = () => new Date().toISOString();
+
+class PgStore implements Store {
+  private pool = new pg.Pool({ connectionString: cfg.databaseUrl, ssl: /railway\.internal|localhost/.test(cfg.databaseUrl) ? false : { rejectUnauthorized: false } });
+
+  async init() {
+    await this.pool.query(`
+      create table if not exists jobs (
+        id text primary key, dedupe_key text not null, source text not null, company text not null, title text not null,
+        location text, distance_km int, mode text, url text, description text,
+        status text not null, skip_reason text, score int, reason text,
+        first_seen timestamptz not null default now(), notified_at timestamptz, feedback text
+      );
+      create index if not exists jobs_dedupe on jobs (dedupe_key);
+      create index if not exists jobs_pending on jobs (status, notified_at);
+      create table if not exists subscribers (chat_id text primary key, name text, paused boolean not null default false, created_at timestamptz not null default now());
+      create table if not exists kv (key text primary key, value text not null);
+    `);
+  }
+  async known(id: string, key: string) {
+    const r = await this.pool.query('select 1 from jobs where id = $1 or dedupe_key = $2 limit 1', [id, key]);
+    return (r.rowCount ?? 0) > 0;
+  }
+  async saveJob(j: StoredJob & { dedupe_key: string }) {
+    await this.pool.query(
+      `insert into jobs (id, dedupe_key, source, company, title, location, distance_km, mode, url, description, status, skip_reason, score, reason, first_seen)
+       values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15) on conflict (id) do nothing`,
+      [j.id, j.dedupe_key, j.source, j.company, j.title, j.location, j.distance_km, j.mode, j.url, j.description, j.status, j.skip_reason, j.score, j.reason, j.first_seen],
+    );
+  }
+  async getJob(id: string) {
+    const r = await this.pool.query('select * from jobs where id = $1', [id]);
+    return (r.rows[0] as StoredJob) ?? null;
+  }
+  async pending(limit: number) {
+    const r = await this.pool.query(`select * from jobs where status = 'match' and notified_at is null order by score desc, first_seen asc limit $1`, [limit]);
+    return r.rows as StoredJob[];
+  }
+  async pendingCount() {
+    const r = await this.pool.query(`select count(*)::int as n from jobs where status = 'match' and notified_at is null`);
+    return r.rows[0].n as number;
+  }
+  async markNotified(id: string) {
+    await this.pool.query('update jobs set notified_at = now() where id = $1', [id]);
+  }
+  async setFeedback(id: string, feedback: string) {
+    await this.pool.query('update jobs set feedback = $2 where id = $1', [id, feedback]);
+  }
+  async recentFeedback(n: number) {
+    const r = await this.pool.query('select title, company, feedback from jobs where feedback is not null order by notified_at desc nulls last limit $1', [n]);
+    return r.rows;
+  }
+  async subscribers() {
+    return (await this.pool.query('select chat_id, name, paused from subscribers')).rows as Subscriber[];
+  }
+  async addSubscriber(chatId: string, name: string | null) {
+    await this.pool.query('insert into subscribers (chat_id, name) values ($1,$2) on conflict (chat_id) do update set paused = false', [chatId, name]);
+  }
+  async setPaused(chatId: string, paused: boolean) {
+    await this.pool.query('update subscribers set paused = $2 where chat_id = $1', [chatId, paused]);
+  }
+  async kvGet(key: string) {
+    const r = await this.pool.query('select value from kv where key = $1', [key]);
+    return r.rows[0]?.value ?? null;
+  }
+  async kvSet(key: string, value: string) {
+    await this.pool.query('insert into kv (key, value) values ($1,$2) on conflict (key) do update set value = excluded.value', [key, value]);
+  }
+  async stats() {
+    const r = await this.pool.query(`select status, count(*)::int as n from jobs group by status`);
+    const out: Record<string, number> = {};
+    for (const row of r.rows) out[row.status] = row.n;
+    const sent = await this.pool.query('select count(*)::int as n from jobs where notified_at is not null');
+    out.gemeldet = sent.rows[0].n;
+    return out;
+  }
+}
+
+interface FileData { jobs: Record<string, StoredJob & { dedupe_key: string }>; subscribers: Subscriber[]; kv: Record<string, string> }
+
+class FileStore implements Store {
+  private data: FileData = { jobs: {}, subscribers: [], kv: {} };
+  private writing: Promise<void> = Promise.resolve();
+  constructor(private path: string) {}
+  // Schreibvorgänge nacheinander, sonst überschreiben sich parallele Läufe
+  private flush() {
+    this.writing = this.writing.then(async () => {
+      await mkdir(dirname(this.path), { recursive: true });
+      await writeFile(this.path, JSON.stringify(this.data, null, 1));
+    });
+    return this.writing;
+  }
+  async init() {
+    try { this.data = JSON.parse(await readFile(this.path, 'utf8')); } catch { /* neu */ }
+  }
+  async known(id: string, key: string) {
+    return !!this.data.jobs[id] || Object.values(this.data.jobs).some((j) => j.dedupe_key === key);
+  }
+  async saveJob(j: StoredJob & { dedupe_key: string }) {
+    if (!this.data.jobs[j.id]) { this.data.jobs[j.id] = j; await this.flush(); }
+  }
+  async getJob(id: string) { return this.data.jobs[id] ?? null; }
+  private pendingList() {
+    return Object.values(this.data.jobs).filter((j) => j.status === 'match' && !j.notified_at).sort((a, b) => (b.score ?? 0) - (a.score ?? 0));
+  }
+  async pending(limit: number) { return this.pendingList().slice(0, limit); }
+  async pendingCount() { return this.pendingList().length; }
+  async markNotified(id: string) { this.data.jobs[id].notified_at = now(); await this.flush(); }
+  async setFeedback(id: string, feedback: string) { if (this.data.jobs[id]) { this.data.jobs[id].feedback = feedback; await this.flush(); } }
+  async recentFeedback(n: number) {
+    return Object.values(this.data.jobs).filter((j) => j.feedback).slice(-n).map(({ title, company, feedback }) => ({ title, company, feedback: feedback! }));
+  }
+  async subscribers() { return this.data.subscribers; }
+  async addSubscriber(chatId: string, name: string | null) {
+    const s = this.data.subscribers.find((x) => x.chat_id === chatId);
+    if (s) s.paused = false; else this.data.subscribers.push({ chat_id: chatId, name, paused: false });
+    await this.flush();
+  }
+  async setPaused(chatId: string, paused: boolean) {
+    const s = this.data.subscribers.find((x) => x.chat_id === chatId);
+    if (s) { s.paused = paused; await this.flush(); }
+  }
+  async kvGet(key: string) { return this.data.kv[key] ?? null; }
+  async kvSet(key: string, value: string) { this.data.kv[key] = value; await this.flush(); }
+  async stats() {
+    const out: Record<string, number> = { gemeldet: 0 };
+    for (const j of Object.values(this.data.jobs)) { out[j.status] = (out[j.status] ?? 0) + 1; if (j.notified_at) out.gemeldet++; }
+    return out;
+  }
+}
+
+export function createStore(): Store {
+  return cfg.databaseUrl ? new PgStore() : new FileStore(new URL('../data/state.json', import.meta.url).pathname);
+}

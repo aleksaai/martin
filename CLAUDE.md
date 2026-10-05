@@ -1,5 +1,7 @@
 # jobradar: Werkstudenten-Alarm für Martin Spalevic
 
+Repo `aleksaai/martin`, lokal `~/Desktop/Projects/martin/`. Railway: eigenes Projekt, ein Service + Postgres, **genau eine Instanz** (zwei würden sich beim Telegram-Polling gegenseitig stören).
+
 Telegram-Bot, der mehrmals am Tag Werkstudentenstellen für Martin (Aleksas Bruder, Wirtschaftsjurist LL.B., Jurastudium
 FernUni Hagen, wohnt in Erftstadt) sucht, mit Haiku nach Passung bewertet und Treffer meldet. Bewusst **getrennt von
 claude-team**: eigenes Repo, eigenes Railway-Projekt, eigene Datenbank, eigener Bot. Martin sieht nichts von Aleksas System.

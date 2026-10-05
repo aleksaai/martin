@@ -14,6 +14,7 @@ export interface Store {
   getJob(id: string): Promise<StoredJob | null>;
   pending(limit: number): Promise<StoredJob[]>;
   pendingCount(): Promise<number>;
+  recentMatches(days: number, limit: number): Promise<StoredJob[]>;
   markNotified(id: string): Promise<void>;
   setFeedback(id: string, feedback: string): Promise<void>;
   recentFeedback(n: number): Promise<{ title: string; company: string; feedback: string }[]>;
@@ -66,6 +67,12 @@ class PgStore implements Store {
   async pendingCount() {
     const r = await this.pool.query(`select count(*)::int as n from jobs where status = 'match' and notified_at is null`);
     return r.rows[0].n as number;
+  }
+  async recentMatches(days: number, limit: number) {
+    const r = await this.pool.query(
+      `select * from jobs where status = 'match' and notified_at is not null and notified_at > now() - make_interval(days => $1)
+       order by score desc, first_seen desc limit $2`, [days, limit]);
+    return r.rows as StoredJob[];
   }
   async markNotified(id: string) {
     await this.pool.query('update jobs set notified_at = now() where id = $1', [id]);
@@ -132,6 +139,12 @@ class FileStore implements Store {
   }
   async pending(limit: number) { return this.pendingList().slice(0, limit); }
   async pendingCount() { return this.pendingList().length; }
+  async recentMatches(days: number, limit: number) {
+    const since = Date.now() - days * 86_400_000;
+    return Object.values(this.data.jobs)
+      .filter((j) => j.status === 'match' && j.notified_at && Date.parse(j.notified_at) > since)
+      .sort((a, b) => (b.score ?? 0) - (a.score ?? 0)).slice(0, limit);
+  }
   async markNotified(id: string) { this.data.jobs[id].notified_at = now(); await this.flush(); }
   async setFeedback(id: string, feedback: string) { if (this.data.jobs[id]) { this.data.jobs[id].feedback = feedback; await this.flush(); } }
   async recentFeedback(n: number) {

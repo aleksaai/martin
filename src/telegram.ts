@@ -41,6 +41,27 @@ function card(j: StoredJob): string {
   ].join('\n');
 }
 
+async function sendCard(chatId: string, j: StoredJob, ref: string) {
+  await tg('sendMessage', {
+    chat_id: chatId,
+    text: card(j),
+    parse_mode: 'HTML',
+    link_preview_options: { is_disabled: true },
+    reply_markup: { inline_keyboard: [[
+      { text: '👍 Passt', callback_data: `gut:${ref}` },
+      { text: '👎 Passt nicht', callback_data: `schlecht:${ref}` },
+      { text: '✍️ Anschreiben', callback_data: `brief:${ref}` },
+    ]] },
+  }).catch((e) => console.error(e.message));
+}
+
+/** Wer neu dazukommt, bekommt die schon gemeldeten Treffer der letzten 14 Tage nachgeliefert. */
+async function sendBacklog(store: Store, chatId: string): Promise<number> {
+  const jobs = await store.recentMatches(14, 30);
+  for (const j of jobs) await sendCard(chatId, j, await shortRef(store, j.id));
+  return jobs.length;
+}
+
 export async function notifyPending(store: Store): Promise<number> {
   if (!cfg.telegramToken) return 0;
   const subs = (await store.subscribers()).filter((s) => !s.paused);
@@ -48,19 +69,7 @@ export async function notifyPending(store: Store): Promise<number> {
   const jobs = await store.pending(cfg.maxPerRun);
   for (const j of jobs) {
     const ref = await shortRef(store, j.id);
-    for (const s of subs) {
-      await tg('sendMessage', {
-        chat_id: s.chat_id,
-        text: card(j),
-        parse_mode: 'HTML',
-        link_preview_options: { is_disabled: true },
-        reply_markup: { inline_keyboard: [[
-          { text: '👍 Passt', callback_data: `gut:${ref}` },
-          { text: '👎 Passt nicht', callback_data: `schlecht:${ref}` },
-          { text: '✍️ Anschreiben', callback_data: `brief:${ref}` },
-        ]] },
-      }).catch((e) => console.error(e.message));
-    }
+    for (const s of subs) await sendCard(s.chat_id, j, ref);
     await store.markNotified(j.id);
   }
   const rest = await store.pendingCount();
@@ -155,7 +164,9 @@ async function handle(u: any, store: Store, triggerRun: () => Promise<string>) {
     }
     await store.addSubscriber(chatId, [m.from?.first_name, m.from?.last_name].filter(Boolean).join(' ') || null);
     await tg('sendMessage', { chat_id: chatId, text: `Hallo ${m.from?.first_name ?? ''}! Du bist angemeldet.\n\n${HELP}` });
-    // Erste Meldungen direkt nach der Anmeldung
+    // Erst nachliefern, was andere schon bekommen haben, dann das noch Offene an alle
+    const n = await sendBacklog(store, chatId);
+    if (n) await tg('sendMessage', { chat_id: chatId, text: `Das waren die ${n} passenden Stellen der letzten 14 Tage. Ab jetzt kommen nur noch neue.` });
     await notifyPending(store);
     return;
   }

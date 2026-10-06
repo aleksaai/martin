@@ -23,6 +23,13 @@
   Gefundene URL in `kv apply_url:<jobId>`. Formular-Fixes: Bewerben-Links werden direkt aufgerufen (target=_blank), Formular erst bei Datei-Upload oder
   Mail + weitere Felder, Felder auch im Shadow-DOM (REWE), Cookie-Banner vor dem Erfassen nochmal schließen, „Titel“ = akademischer Titel bleibt leer.
   REWE-Formular im Trockenlauf komplett: Daten, Lebenslauf, Anschreiben; offen nur echte Fragen (Gehalt, Stunden, Wochentage, Start).
+- **Chat-Assistent (06.10. abends, `src/agent.ts`):** Jede Nicht-Befehl-Nachricht geht an Sonnet mit Werkzeugen `formular_oeffnen`,
+  `formular_ergaenzen`, `anschreiben_aendern`, `merken`, `vergessen` + Server-Websuche (Gehaltsberatung). Verlauf in `kv hist:<chat>` (24 Nachrichten),
+  aktive Bewerbung in `kv active_job:<chat>`, Gedächtnis = `kv answers` (fließt in Anschreiben und Formulare). Merken nur nach Martins Ja.
+  Absenden kann der Chat nie, nur der Knopf. Formular-Bericht kurz („ausgefüllt, beide PDFs drin, mir fehlt noch …“), Screenshot als Foto.
+  **Sicherungen:** nie auf arbeitsagentur.de oder Konto-Portalen ausfüllen (erst Original-Anzeige suchen), Formular nur bei Upload/E-Mail+Feldern,
+  Absenden-Knopf nur ohne offene Punkte UND mit hochgeladenem Lebenslauf (Anlass: lokaler Test füllte das BA-Captcha-Feld und bot Absenden an).
+  Test-Skripte: `scripts/test-chat.ts` (Telegram auf Konsole umgeleitet), `test-form.ts`, `test-letter.ts`, `test-original.ts`, `check-feeds.ts`.
 - Offen: erster Railway-Build mit Playwright prüfen, Martin anmelden, Martin nennt einmal Starttermin/Stunden (Antwort auf einen Formular-Screenshot
   landet in `kv.answers` und fließt danach auch in die Anschreiben), Immatrikulationsbescheinigung als `data/docs/immatrikulation.pdf`.
 

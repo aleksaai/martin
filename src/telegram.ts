@@ -1,5 +1,6 @@
 // Telegram per Long Polling: kein Webhook, keine öffentliche Adresse nötig.
-import { cancelForm, handleFormReply, startForm, submitForm } from './apply.ts';
+import { chat } from './agent.ts';
+import { cancelForm, startForm, submitForm } from './apply.ts';
 import { handleLetterReply, handleOutcome, listApplications, markApplied, prepareApplication } from './bewerbung.ts';
 import { cfg } from './config.ts';
 import type { Store } from './store.ts';
@@ -70,16 +71,11 @@ export async function broadcast(store: Store, text: string) {
 }
 
 const HELP = [
-  'Ich suche mehrmals am Tag nach Werkstudentenstellen für dich: remote in Deutschland oder vor Ort/hybrid rund um Köln.',
-  'Neue passende Stellen schicke ich dir sofort. Mit 📨 Bewerben und 👎 Passt nicht lerne ich, was dir gefällt.',
-  '📨 Bewerben schreibt dir ein Anschreiben (Text + PDF), schickt deinen Lebenslauf mit und füllt auf Wunsch das Bewerbungsformular aus. Abgeschickt wird nur, wenn du auf Absenden tippst.',
-  'Antwortest du auf ein Anschreiben mit deiner eigenen Fassung, lerne ich deinen Stil.',
+  'Ich suche dreimal am Tag Werkstudentenstellen für dich, remote oder rund um Köln, und schicke dir, was passt.',
+  'Tipp auf 📨 Bewerben, dann bekommst du ein fertiges Anschreiben und ich fülle auf Wunsch das Bewerbungsformular für dich aus. Abgeschickt wird nur, wenn du zustimmst.',
+  'Ansonsten schreib mir einfach ganz normal: Angaben fürs Formular, Fragen zum Gehalt, Änderungen am Anschreiben.',
   '',
-  '/bewerbungen  Stand deiner Bewerbungen',
-  '/suche  jetzt sofort suchen',
-  '/status  was bisher gefunden wurde',
-  '/pause  keine Meldungen mehr',
-  '/weiter  Meldungen wieder an',
+  '/suche  jetzt suchen  ·  /bewerbungen  dein Stand  ·  /pause  ·  /weiter',
 ].join('\n');
 
 export function startBot(store: Store, triggerRun: () => Promise<string>) {
@@ -144,6 +140,7 @@ async function handle(u: any, store: Store, triggerRun: () => Promise<string>) {
         return;
       case 'form':
         await answer();
+        await store.kvSet(`active_job:${chatId}`, job.id);
         await startForm(store, chatId, job, ref);
         return;
       case 'ok':
@@ -186,7 +183,11 @@ async function handle(u: any, store: Store, triggerRun: () => Promise<string>) {
   const replyTo = m.reply_to_message?.message_id;
   if (replyTo && !text.startsWith('/')) {
     if (await handleLetterReply(store, chatId, replyTo, text)) return;
-    if (await handleFormReply(store, chatId, replyTo, text)) return;
+  }
+  // Alles, was kein Befehl ist, geht an den Chat-Assistenten (Formular ergänzen, Beratung, Gedächtnis)
+  if (!text.startsWith('/')) {
+    await chat(store, chatId, text);
+    return;
   }
 
   if (text.startsWith('/bewerbungen')) {

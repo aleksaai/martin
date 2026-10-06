@@ -8,7 +8,7 @@ import type { BrowserContext, Frame, Page } from 'playwright';
 import { getBrowser } from './browser.ts';
 import { cfg } from './config.ts';
 import { CONTACT, docPath, fileSafe, letterPdf } from './documents.ts';
-import { PROFILE } from './llm.ts';
+import { findOriginalPosting, PROFILE } from './llm.ts';
 import type { Store } from './store.ts';
 import { button, esc, tg, tgFile } from './tg.ts';
 import type { StoredJob } from './types.ts';
@@ -115,7 +115,18 @@ const COLLECT_SRC = `function (fi) {
       el.setAttribute('data-jr', id);
       var options;
       if (el.tagName === 'SELECT') options = Array.prototype.map.call(el.options, function (o) { return o.text.trim(); }).filter(Boolean).slice(0, 60);
-      res.push({ id: id, frame: fi, kind: type, label: labelFor(el) + ((type === 'radio' || type === 'checkbox') ? ' [Wert: ' + el.value + ']' : ''), required: el.required || el.getAttribute('aria-required') === 'true', options: options });
+      // Bei Auswahlfeldern steht die eigentliche Frage oft als Text über der Gruppe
+      var question = '';
+      if (type === 'radio' || type === 'checkbox') {
+        var a = el;
+        for (var k = 0; k < 6 && !question; k++) {
+          a = a.parentElement || (a.getRootNode && a.getRootNode().host) || null;
+          if (!a) break;
+          var prev = a.previousElementSibling;
+          if (prev && textOf(prev).length > 12) question = 'Frage: ' + textOf(prev).slice(0, 200) + ' | ';
+        }
+      }
+      res.push({ id: id, frame: fi, kind: type, label: question + labelFor(el) + ((type === 'radio' || type === 'checkbox') ? ' [Wert: ' + el.value + ']' : ''), required: el.required || el.getAttribute('aria-required') === 'true', options: options });
     });
   });
   return res;
@@ -171,7 +182,7 @@ Regeln:
 - "files": Datei-Felder. Lebenslauf/CV/Resume -> "lebenslauf", Anschreiben/Cover Letter/Motivationsschreiben -> "anschreiben", Immatrikulation/Studienbescheinigung -> "immatrikulation". Gibt es nur ein Datei-Feld für alle Unterlagen: "lebenslauf". Nicht vorhandenes Dokument weglassen.
 - "check": IDs von Radio-Buttons oder Checkboxen, die eine Sachfrage beantworten (z.B. Anrede, Studierender ja), nur wenn die Antwort sicher aus seinen Daten folgt.
 - "consent": IDs von Einwilligungs-Checkboxen (Datenschutz, Speicherung, Talentpool nur wenn Pflicht). NICHT in "check" aufnehmen.
-- "offen": kurze deutsche Beschreibung jeder Pflichtangabe, die du NICHT sicher beantworten kannst (z.B. Gehaltsvorstellung, frühester Start, Wochenstunden, Staatsangehörigkeit/Arbeitserlaubnis, Notendurchschnitt, wie er auf die Stelle aufmerksam wurde). Raten ist verboten. Freiwillige unklare Felder einfach leer lassen.
+- "offen": KURZE deutsche Bezeichnung (höchstens 4 Wörter, z.B. "Gehaltswunsch", "Starttermin", "Wochenstunden", "Arbeitstage", "Vollzeitstudium ja/nein") jeder Angabe, die du NICHT sicher beantworten kannst (z.B. Gehaltsvorstellung, frühester Start, Wochenstunden, Staatsangehörigkeit/Arbeitserlaubnis, Notendurchschnitt, wie er auf die Stelle aufmerksam wurde). Raten ist verboten. Freiwillige unklare Felder einfach leer lassen.
 - Feld "Titel" meint einen akademischen Titel (Dr., Prof.): leer lassen. "Wirtschaftsjurist (LL.B.)" ist KEIN Titel.
 - Freitextfragen nur beantworten, wenn die Antwort sicher aus den Daten folgt; sonst in "offen" aufnehmen, auch wenn sie freiwillig sind, sofern sie für die Bewerbung wichtig wirken (Stunden, Wochentage, Starttermin, Gehalt, Vollzeitstudium).
 - Felder wie Suche, Newsletter, Login, Passwort, Konto anlegen: ignorieren.
@@ -263,14 +274,14 @@ async function uploadViaChooser(s: Session, already: Set<string>): Promise<strin
 }
 
 async function screenshot(s: Session, caption: string, markup?: unknown) {
-  const png = await s.page.screenshot({ fullPage: true, timeout: 20_000 });
-  const size = await s.page.evaluate(() => ({ w: document.documentElement.scrollWidth, h: document.documentElement.scrollHeight })).catch(() => ({ w: 1280, h: 2000 }));
+  // Als Foto, damit es im Chat direkt sichtbar ist. Telegram erlaubt Breite + Höhe bis 10.000 px: sehr lange Seiten oben abschneiden
+  const height = await s.page.evaluate(() => document.documentElement.scrollHeight).catch(() => 2000) as number;
+  const img = height <= 8600
+    ? await s.page.screenshot({ fullPage: true, type: 'jpeg', quality: 80, timeout: 20_000 })
+    : await s.page.screenshot({ fullPage: true, type: 'jpeg', quality: 80, timeout: 20_000, clip: { x: 0, y: 0, width: 1280, height: 8600 } });
   const extra: Record<string, unknown> = { caption: caption.slice(0, 1000), parse_mode: 'HTML' };
   if (markup) extra.reply_markup = markup;
-  // Sehr lange Seiten verweigert Telegram als Foto: dann als Datei
-  return size.h / Math.max(size.w, 1) <= 3
-    ? tgFile('sendPhoto', s.chatId, png, 'formular.png', extra)
-    : tgFile('sendDocument', s.chatId, png, `Formular_${fileSafe(s.job.company)}.png`, extra);
+  return tgFile('sendPhoto', s.chatId, img, `Formular_${fileSafe(s.job.company)}.jpg`, extra);
 }
 
 function close(ref: string) {
@@ -281,37 +292,72 @@ function close(ref: string) {
   sessions.delete(ref);
 }
 
-async function fillAndReport(store: Store, s: Session) {
+export interface FormResult { ok: boolean; offen: string[]; captcha: boolean; note?: string }
+
+async function fillAndReport(store: Store, s: Session): Promise<FormResult> {
   const app = await store.getApplication(s.job.id);
   const letter = app?.letter ?? '';
   const standing = (await store.kvGet('answers')) ?? '';
   s.fields = await collectFields(s.page);
-  if (!s.fields.length) {
-    await tg('sendMessage', { chat_id: s.chatId, text: `Ich finde auf der Seite kein Bewerbungsformular. Bitte bewirb dich direkt:\n${s.page.url()}` });
+  if (!s.fields.length || !(await hasForm(s.page))) {
+    await tg('sendMessage', { chat_id: s.chatId, text: `Auf der Seite finde ich kein Bewerbungsformular. Bewirb dich hier bitte direkt: ${s.page.url()}` });
     close(s.ref);
-    return;
+    return { ok: false, offen: [], captcha: false, note: 'kein Formular gefunden' };
   }
   s.plan = await planFill(s.job, s.fields, letter, [standing, s.extra].filter(Boolean).join('\n'));
   const done = await applyPlan(s, letter);
+  const docs = done.filter((d) => d.startsWith('📎')).map((d) => d.slice(3));
   const captcha = (await s.page.locator('iframe[src*="recaptcha"], iframe[src*="hcaptcha"], iframe[src*="turnstile"]').count()) > 0;
-  const lines = [
-    `🤖 <b>Formular bei ${esc(s.job.company)}</b>`,
-    `Ausgefüllt: ${esc(done.join(', ') || 'nichts')}`,
-    s.plan.consent.length ? 'Datenschutz-Einwilligung: setze ich erst beim Absenden.' : '',
-    s.plan.offen.length ? `\n❓ <b>Noch offen:</b> ${esc(s.plan.offen.join(', '))}\nAntworte auf dieses Bild mit den Angaben, z.B. „Start 1.11., 20 Std/Woche, 15 €/h“. Ich merke sie mir auch für spätere Formulare.` : '',
-    captcha ? '\n⚠️ Die Seite hat eine Captcha-Prüfung. Falls das Absenden scheitert, schick es bitte selbst über den Link ab.' : '',
-    `\nBitte prüf den Screenshot. Abgeschickt wird erst, wenn du auf Absenden tippst.`,
-  ].filter(Boolean).join('\n');
-  const rows = [[...(s.plan.offen.length ? [] : [button('✅ Absenden', `send:${s.ref}`)]), button('❌ Abbrechen', `stop:${s.ref}`)], [{ text: '🔗 Selbst öffnen', url: s.page.url() }]];
-  const msg = await screenshot(s, lines, { inline_keyboard: rows });
+  // Kurz und menschlich: was drin ist, sieht Martin auf dem Bild. Nur sagen, was fehlt.
+  const uploaded = docs.length === 2 ? 'beide PDFs sind hochgeladen' : docs.length === 1 ? `${docs[0] === 'lebenslauf' ? 'der Lebenslauf' : 'das Anschreiben'} ist hochgeladen` : 'PDFs konnte ich nicht hochladen, das müsstest du selbst machen';
+  const text = [
+    `Das Formular bei ${esc(s.job.company)} ist ausgefüllt, ${uploaded}.`,
+    s.plan.offen.length
+      ? `Mir fehlt noch: ${esc(s.plan.offen.join(', '))}. Schreib's mir einfach hier in den Chat. Wenn du beim Gehalt unsicher bist, frag mich, was üblich ist.`
+      : docs.includes('lebenslauf') ? 'Schau kurz drüber. Passt alles, tipp auf Absenden.' : 'Absenden biete ich erst an, wenn der Lebenslauf drin ist. Lad ihn bitte selbst hoch über „Selbst öffnen“.',
+    captcha ? 'Die Seite hat eine Captcha-Prüfung, das Absenden könnte deshalb scheitern.' : '',
+  ].filter(Boolean).join('\n\n');
+  // Absenden nur, wenn nichts offen ist UND der Lebenslauf wirklich drin ist (sonst ist es vermutlich das falsche Formular)
+  const canSend = !s.plan.offen.length && docs.includes('lebenslauf');
+  const rows = [[...(canSend ? [button('✅ Absenden', `send:${s.ref}`)] : []), button('❌ Abbrechen', `stop:${s.ref}`)], [{ text: '🔗 Selbst öffnen', url: s.page.url() }]];
+  const msg = await screenshot(s, text, { inline_keyboard: rows });
   await store.kvSet(`form_msg:${s.chatId}:${msg.message_id}`, s.ref);
+  return { ok: true, offen: s.plan.offen, captcha };
 }
 
-export async function startForm(store: Store, chatId: string, job: StoredJob, ref: string) {
+/** Offenes Formular dieses Chats (das zuletzt geöffnete). */
+export function activeForm(chatId: string): { company: string; title: string; offen: string[]; filledWith: string } | null {
+  const s = [...sessions.values()].reverse().find((x) => x.chatId === chatId);
+  return s ? { company: s.job.company, title: s.job.title, offen: s.plan.offen, filledWith: s.extra } : null;
+}
+
+/** Angaben in natürlicher Sprache ins offene Formular übernehmen und neu ausfüllen (für den Chat-Agenten). */
+export async function refillForm(store: Store, chatId: string, angaben: string): Promise<FormResult | null> {
+  const s = [...sessions.values()].reverse().find((x) => x.chatId === chatId);
+  if (!s) return null;
+  clearTimeout(s.timer);
+  s.timer = setTimeout(() => close(s.ref), 20 * 60_000);
+  s.extra = [s.extra, angaben].filter(Boolean).join('\n');
+  return fillAndReport(store, s);
+}
+
+export async function startForm(store: Store, chatId: string, job: StoredJob, ref: string, extra = ''): Promise<FormResult | null> {
   close(ref);
   const wait = await tg('sendMessage', { chat_id: chatId, text: `⏳ Öffne das Bewerbungsformular bei ${job.company} und fülle es aus, das dauert etwa eine Minute …` }).catch(() => null);
   const dropWait = () => (wait ? tg('deleteMessage', { chat_id: chatId, message_id: wait.message_id }).catch(() => {}) : undefined);
-  const applyUrl = (await store.kvGet(`apply_url:${job.id}`)) ?? job.url;
+  let applyUrl = (await store.kvGet(`apply_url:${job.id}`)) ?? job.url;
+  // Nie auf Seiten der Arbeitsagentur (Captcha) oder Konto-Portalen ausfüllen: erst die Original-Anzeige suchen
+  if (/arbeitsagentur\.de/.test(applyUrl)) {
+    applyUrl = (await findOriginalPosting(job)) ?? applyUrl;
+    await store.kvSet(`apply_url:${job.id}`, applyUrl);
+  }
+  if (/arbeitsagentur\.de|myworkdayjobs|successfactors|oraclecloud|taleo|icims|avature|phenom/i.test(applyUrl)) {
+    if (wait) await tg('deleteMessage', { chat_id: chatId, message_id: wait.message_id }).catch(() => {});
+    await tg('sendMessage', { chat_id: chatId, text: /arbeitsagentur/.test(applyUrl)
+      ? `Für diese Stelle finde ich keine eigene Online-Anzeige von ${job.company}, nur die der Arbeitsagentur. Dort steht der Bewerbungsweg hinter einer Sicherheitsabfrage, die musst du selbst lösen: ${applyUrl}`
+      : `Das Portal von ${job.company} verlangt ein eigenes Konto. Da bewirbst du dich bitte selbst, beide PDFs hast du oben: ${applyUrl}` });
+    return { ok: false, offen: [], captcha: false, note: 'kein ausfüllbares Formular (Arbeitsagentur oder Konto-Portal), Martin wurde informiert' };
+  }
   const app = await store.getApplication(job.id);
   const dir = mkdtempSync(join(tmpdir(), 'bewerbung-'));
   const files: Record<string, string> = {};
@@ -322,37 +368,24 @@ export async function startForm(store: Store, chatId: string, job: StoredJob, re
   const browser = await getBrowser();
   const context = await browser.newContext({ locale: 'de-DE', viewport: { width: 1280, height: 900 }, userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0 Safari/537.36' });
   const page = await context.newPage();
-  const s: Session = { job, chatId, ref, context, page, fields: [], plan: { fill: [], files: [], check: [], consent: [], offen: [] }, files, extra: '', timer: setTimeout(() => close(ref), 20 * 60_000) };
+  const s: Session = { job, chatId, ref, context, page, fields: [], plan: { fill: [], files: [], check: [], consent: [], offen: [] }, files, extra, timer: setTimeout(() => close(ref), 20 * 60_000) };
   sessions.set(ref, s);
   try {
     await openForm(page, applyUrl);
-    await fillAndReport(store, s);
     await dropWait();
+    return await fillAndReport(store, s);
   } catch (e) {
     await dropWait();
     await tg('sendMessage', { chat_id: chatId, text: `Das Formular konnte ich nicht ausfüllen (${(e as Error).message.slice(0, 120)}). Bitte bewirb dich direkt:\n${applyUrl}` });
     close(ref);
+    return { ok: false, offen: [], captcha: false, note: (e as Error).message.slice(0, 120) };
   }
 }
 
 /** Antwort auf den Formular-Screenshot: fehlende Angaben übernehmen und neu ausfüllen. */
-export async function handleFormReply(store: Store, chatId: string, replyToId: number, text: string): Promise<boolean> {
-  const ref = await store.kvGet(`form_msg:${chatId}:${replyToId}`);
-  const s = ref ? sessions.get(ref) : undefined;
-  if (!ref) return false;
-  if (!s) { await tg('sendMessage', { chat_id: chatId, text: 'Die Formular-Sitzung ist abgelaufen. Tipp nochmal auf 🤖 Formular ausfüllen.' }); return true; }
-  s.extra = [s.extra, text].filter(Boolean).join('\n');
-  // Dauerhafte Angaben (Start, Stunden, Gehalt …) für künftige Formulare merken
-  const prev = (await store.kvGet('answers')) ?? '';
-  await store.kvSet('answers', [prev, text].filter(Boolean).join('\n').slice(-2000));
-  await tg('sendMessage', { chat_id: chatId, text: 'Danke, ich trage das ein.' });
-  await fillAndReport(store, s);
-  return true;
-}
-
 export async function submitForm(store: Store, chatId: string, ref: string): Promise<'ok' | 'unklar' | 'weg'> {
   const s = sessions.get(ref);
-  if (!s) { await tg('sendMessage', { chat_id: chatId, text: 'Die Formular-Sitzung ist abgelaufen. Tipp nochmal auf 🤖 Formular ausfüllen.' }); return 'weg'; }
+  if (!s) { await tg('sendMessage', { chat_id: chatId, text: 'Das Formular ist nicht mehr offen (nach 20 Minuten schließe ich es). Tipp nochmal auf 🤖 Für mich bewerben.' }); return 'weg'; }
   await tg('sendMessage', { chat_id: chatId, text: 'Schicke ab …' });
   for (const id of s.plan.consent) {
     const fr = frameOf(s, id);

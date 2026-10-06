@@ -43,11 +43,12 @@ async function sendLetterPdf(store: Store, chatId: string, job: StoredJob, lette
   await store.kvSet(`letter_msg:${chatId}:${msg.message_id}`, job.id);
 }
 
-const LETTER_CAPTION = 'Dein Anschreiben. Etwas ändern? Antworte auf dieses PDF, z.B. „kürzer“ oder „erwähne meine Bachelorarbeit“, oder schick deine eigene Fassung.';
+const LETTER_CAPTION = 'Dein Anschreiben. Willst du etwas ändern? Schreib es mir einfach, z.B. „kürzer“ oder „erwähne meine Bachelorarbeit“.';
 
 /** Knopf "📨 Bewerben": Anschreiben-PDF, Lebenslauf und der passende Weg zur Bewerbung. */
 export async function prepareApplication(store: Store, chatId: string, job: StoredJob, ref: string) {
   const status = await statusLine(chatId, `Schreibe dein Anschreiben für ${job.company} …`);
+  await store.kvSet(`active_job:${chatId}`, job.id);
   try {
     const answers = (await store.kvGet('answers')) ?? '';
     const letter = await writeLetter(job, await store.letterExamples(4), answers, status.step);
@@ -91,12 +92,10 @@ export async function prepareApplication(store: Store, chatId: string, job: Stor
   }
 }
 
-/** Antwort auf das Anschreiben-PDF: lange Antwort = Martins eigene Fassung (wird Stilvorlage), kurze = Änderungswunsch. */
-export async function handleLetterReply(store: Store, chatId: string, replyToId: number, text: string): Promise<boolean> {
-  const jobId = await store.kvGet(`letter_msg:${chatId}:${replyToId}`);
-  if (!jobId) return false;
+/** Für den Chat: Anschreiben einer Bewerbung nach Wunsch (oder als eigene Fassung) ändern und neues PDF schicken. */
+export async function reviseAndSend(store: Store, chatId: string, jobId: string, text: string) {
   const job = await store.getJob(jobId);
-  if (!job) return false;
+  if (!job) return;
   const own = text.trim().split(/\s+/).length >= 120 || /^sehr geehrte/i.test(text.trim());
   const status = await statusLine(chatId, own ? 'Übernehme deine Fassung …' : 'Überarbeite das Anschreiben …');
   try {
@@ -105,10 +104,18 @@ export async function handleLetterReply(store: Store, chatId: string, replyToId:
     await store.upsertApplication({ job_id: job.id, letter });
     if (own) await store.addLetterExample(text);
     await status.step('Baue das PDF …');
-    await sendLetterPdf(store, chatId, job, letter, own ? 'Deine Fassung. Ich schreibe die nächsten Anschreiben näher an deinem Stil.' : `Überarbeitet. ${LETTER_CAPTION}`);
+    await sendLetterPdf(store, chatId, job, letter, own ? 'Deine Fassung. Ich schreibe die nächsten Anschreiben näher an deinem Stil.' : 'Überarbeitet. Noch etwas? Schreib es mir einfach.');
   } finally {
     await status.done();
   }
+}
+
+/** Antwort auf das Anschreiben-PDF: lange Antwort = Martins eigene Fassung (wird Stilvorlage), kurze = Änderungswunsch. */
+export async function handleLetterReply(store: Store, chatId: string, replyToId: number, text: string): Promise<boolean> {
+  const jobId = await store.kvGet(`letter_msg:${chatId}:${replyToId}`);
+  if (!jobId) return false;
+  await store.kvSet(`active_job:${chatId}`, jobId);
+  await reviseAndSend(store, chatId, jobId, text);
   return true;
 }
 

@@ -16,6 +16,11 @@ import { listHtml } from './sources/html.ts';
 const client = new Anthropic({ apiKey: cfg.anthropicKey });
 const HISTORY = 24;
 // Diese Werkzeuge schicken selbst eine Nachricht mit Bild/PDF und Text
+const READ_ONLY = new Set(['bewerbungen_uebersicht', 'sucheinstellungen']);
+const OBSERVER_NOTE = `WICHTIG: Du schreibst gerade NICHT mit Martin, sondern mit Aleksa, Martins Bruder. Er hat dich gebaut und liest als
+Beobachter mit, um zu prüfen, ob alles läuft. Sprich ihn mit „Aleksa“ an (Ton weiter Feldwebel, aber als Meldung an den Vorgesetzten).
+Du kannst ihm Lagebericht und Sucheinstellungen zeigen und Fragen beantworten. Ändern darfst du in diesem Chat nichts: kein
+Eintragen, Merken, Formular, Anschreiben. Will er etwas ändern, sag ihm, dass Martin das in seinem Chat tun muss.`;
 const SENDS_ITSELF = new Set(['formular_oeffnen', 'formular_ergaenzen', 'formular_weiter', 'anschreiben_aendern']);
 
 type Msg = { role: 'user' | 'assistant'; content: string };
@@ -275,9 +280,9 @@ async function runTool(store: Store, chatId: string, name: string, input: any, c
 // Ein Durchlauf je Chat gleichzeitig, damit Nachrichten in Reihenfolge beantwortet werden
 const queues = new Map<string, Promise<unknown>>();
 
-export function chat(store: Store, chatId: string, text: string, messageId?: number): Promise<void> {
+export function chat(store: Store, chatId: string, text: string, messageId?: number, observer = false): Promise<void> {
   const prev = queues.get(chatId) ?? Promise.resolve();
-  const next = prev.then(() => turn(store, chatId, text, messageId)).catch((e) => {
+  const next = prev.then(() => turn(store, chatId, text, messageId, observer)).catch((e) => {
     console.error('Chat-Fehler:', e);
     return tg('sendMessage', { chat_id: chatId, text: 'Da ist bei mir gerade etwas schiefgelaufen, versuch es bitte gleich nochmal.' }).catch(() => {});
   });
@@ -285,10 +290,12 @@ export function chat(store: Store, chatId: string, text: string, messageId?: num
   return next.then(() => {});
 }
 
-async function turn(store: Store, chatId: string, text: string, messageId?: number) {
+async function turn(store: Store, chatId: string, text: string, messageId?: number, observer = false) {
   const history: Msg[] = JSON.parse((await store.kvGet(`hist:${chatId}`)) ?? '[]');
   const messages: any[] = [...history.map((m) => ({ role: m.role, content: m.content })), { role: 'user', content: text }];
-  const sys = system(await contextBlock(store, chatId));
+  // Beobachter (Aleksa): nur lesende Werkzeuge, eigener Hinweis im Systemprompt
+  const sys = observer ? `${OBSERVER_NOTE}\n\n${system(await contextBlock(store, chatId))}` : system(await contextBlock(store, chatId));
+  const tools = observer ? TOOLS.filter((t) => READ_ONLY.has(t.name)) : TOOLS;
   const typing = setInterval(() => void tg('sendChatAction', { chat_id: chatId, action: 'typing' }).catch(() => {}), 4500);
   void tg('sendChatAction', { chat_id: chatId, action: 'typing' }).catch(() => {});
   let reply = '';
@@ -301,7 +308,7 @@ async function turn(store: Store, chatId: string, text: string, messageId?: numb
         model: cfg.letterModel,
         max_tokens: 8000,
         system: sys,
-        tools: [...TOOLS, { type: 'web_search_20250305', name: 'web_search', max_uses: 4 } as never],
+        tools: [...tools, { type: 'web_search_20250305', name: 'web_search', max_uses: 4 } as never],
         messages,
       });
       messages.push({ role: 'assistant', content: res.content });
@@ -313,6 +320,7 @@ async function turn(store: Store, chatId: string, text: string, messageId?: numb
       }
       const results = [];
       for (const u of uses) {
+        if (observer && !READ_ONLY.has(u.name)) { results.push({ type: 'tool_result', tool_use_id: u.id, content: 'Im Beobachter-Modus nicht erlaubt.' }); continue; }
         if (SENDS_ITSELF.has(u.name)) sentByTool = true;
         toolsUsed.push(u.name);
         if (u.name === 'konto_hinterlegen') secret = true;

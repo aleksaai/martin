@@ -56,6 +56,10 @@
   anderen Abonnenten (Aleksa bekommt eine Hinweisnachricht, `/weiter` holt ihn zurück) und setzt `live_since`. Martin bekommt alle Treffer der
   letzten 14 Tage (max. 30) als neu (`touchNotified`, 24-h-Nachfassen zählt ab seinem Start). Bewertete Stellen bleiben, nichts wird neu bezahlt.
   ⚠️ Danach meldet sich niemand mehr „zum Test“ mit dem Code an, das würde nichts löschen, aber mitlesen.
+- **Beobachter-Modus (06.10., Aleksas Wunsch):** `/beobachter` setzt `kv role:<chat>=beobachter` und entpausiert. Beobachter bekommen
+  dieselben automatischen Meldungen, Stellenkarten mit 👁 und ohne Knöpfe; Knopf-Klicks werden abgewiesen; der Chat-Agent weiß, dass es
+  Aleksa ist, hat nur `bewerbungen_uebersicht` + `sucheinstellungen` + Websuche und ändert nichts. Martins Start pausiert Beobachter nicht.
+  Martins eigene Chats werden bewusst NICHT gespiegelt. `/pause` / `/weiter` wie gehabt.
 - Offen: erster Railway-Build mit Playwright prüfen, Martin anmelden, Martin nennt einmal Starttermin/Stunden (Antwort auf einen Formular-Screenshot
   landet in `kv.answers` und fließt danach auch in die Anschreiben), Immatrikulationsbescheinigung als `data/docs/immatrikulation.pdf`.
 

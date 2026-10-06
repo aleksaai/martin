@@ -29,17 +29,22 @@ function card(j: StoredJob): string {
   ].join('\n');
 }
 
-async function sendCard(chatId: string, j: StoredJob, ref: string) {
+/** Beobachter (Aleksa): sieht die Meldungen, ändert aber nichts an Martins Daten. */
+export async function isObserver(store: Store, chatId: string): Promise<boolean> {
+  return (await store.kvGet(`role:${chatId}`)) === 'beobachter';
+}
+
+async function sendCard(chatId: string, j: StoredJob, ref: string, observer = false) {
   await tg('sendMessage', {
     chat_id: chatId,
-    text: card(j),
+    text: observer ? `👁 ${card(j)}` : card(j),
     parse_mode: 'HTML',
     link_preview_options: { is_disabled: true },
-    // Zwei Knöpfe: Bewerben zählt als "passt" (setzt das Feedback in prepareApplication), 👎 lernt das Gegenteil
-    reply_markup: { inline_keyboard: [[
+    // Zwei Knöpfe: Bewerben zählt als "passt" (setzt das Feedback in prepareApplication), 👎 lernt das Gegenteil. Beobachter ohne Knöpfe.
+    ...(observer ? {} : { reply_markup: { inline_keyboard: [[
       { text: '📨 Bewerben', callback_data: `bew:${ref}` },
       { text: '👎 Passt nicht', callback_data: `schlecht:${ref}` },
-    ]] },
+    ]] } }),
   }).catch((e) => console.error(e.message));
 }
 
@@ -59,7 +64,7 @@ export async function notifyPending(store: Store): Promise<number> {
   const jobs = await store.pending(cfg.maxPerRun);
   for (const j of jobs) {
     const ref = await shortRef(store, j.id);
-    for (const s of subs) await sendCard(s.chat_id, j, ref);
+    for (const s of subs) await sendCard(s.chat_id, j, ref, await isObserver(store, s.chat_id));
     await store.markNotified(j.id);
   }
   const rest = await store.pendingCount();
@@ -105,6 +110,7 @@ export function startBot(store: Store, triggerRun: () => Promise<string>) {
     { command: 'status', description: 'Was bisher gefunden wurde' },
     { command: 'bewerbungen', description: 'Lagebericht deiner Bewerbungen' },
     { command: 'pause', description: 'Keine Meldungen mehr' },
+    { command: 'beobachter', description: 'Nur mitlesen (für Aleksa)' },
     { command: 'weiter', description: 'Meldungen wieder an' },
   ] }).catch(() => {});
 }
@@ -115,6 +121,10 @@ export async function handle(u: any, store: Store, triggerRun: () => Promise<str
     const q = u.callback_query;
     const chatId = String(q.message?.chat?.id);
     if (!subs.some((s) => s.chat_id === chatId)) return;
+    if (await isObserver(store, chatId)) {
+      await tg('answerCallbackQuery', { callback_query_id: q.id, text: 'Beobachter-Modus: entscheiden kann hier nur Martin.' }).catch(() => {});
+      return;
+    }
     const [action, ref] = String(q.data).split(':');
     const answer = (text?: string) => tg('answerCallbackQuery', { callback_query_id: q.id, ...(text ? { text } : {}) }).catch(() => {});
     if (action === 'send' || action === 'stop') {
@@ -188,12 +198,17 @@ export async function handle(u: any, store: Store, triggerRun: () => Promise<str
     // Erste Anmeldung nach der Testphase (Aleksa war Testnutzer): Testdaten weg, Test-Chats pausieren, ab jetzt echter Betrieb
     const firstReal = !(await store.kvGet('live_since'));
     if (firstReal) {
-      const others = (await store.subscribers()).filter((x) => x.chat_id !== chatId && !x.paused);
+      const all = (await store.subscribers()).filter((x) => x.chat_id !== chatId);
+      const observers: string[] = [];
+      for (const x of all) if (await isObserver(store, x.chat_id)) observers.push(x.chat_id);
+      const others = all.filter((x) => !x.paused && !observers.includes(x.chat_id));
       await store.resetTestData(chatId);
+      for (const o of observers) await store.setPaused(o, false);
       await store.kvSet('live_since', new Date().toISOString());
       for (const o of others) {
-        await tg('sendMessage', { chat_id: o.chat_id, text: 'Martin ist jetzt angemeldet, der Testbetrieb ist beendet. Deine Testdaten sind gelöscht und dieser Chat ist pausiert. Mit /weiter kannst du wieder mitlesen.' }).catch(() => {});
+        await tg('sendMessage', { chat_id: o.chat_id, text: 'Martin ist jetzt angemeldet, der Testbetrieb ist beendet. Deine Testdaten sind gelöscht und dieser Chat ist pausiert. Mit /beobachter liest du mit, ohne etwas zu verändern.' }).catch(() => {});
       }
+      for (const o of observers) await tg('sendMessage', { chat_id: o, text: '👁 Martin ist angemeldet, ab jetzt läuft der echte Betrieb. Du siehst seine Meldungen als Beobachter.' }).catch(() => {});
     }
     await store.addSubscriber(chatId, [m.from?.first_name, m.from?.last_name].filter(Boolean).join(' ') || null);
     await tg('sendMessage', { chat_id: chatId, text: `Willkommen an Bord, ${m.from?.first_name ?? 'Kamerad'}!\n\n${HELP}` });
@@ -207,13 +222,20 @@ export async function handle(u: any, store: Store, triggerRun: () => Promise<str
 
   // 👀 zeigt sofort, dass die Nachricht angekommen ist; verschwindet mit der Antwort
   const react = (on: boolean) => tg('setMessageReaction', { chat_id: chatId, message_id: m.message_id, reaction: on ? [{ type: 'emoji', emoji: '👀' }] : [] }).catch(() => {});
+  if (text.startsWith('/beobachter')) {
+    await store.kvSet(`role:${chatId}`, 'beobachter');
+    await store.setPaused(chatId, false);
+    await tg('sendMessage', { chat_id: chatId, text: '👁 Beobachter-Modus an. Du bekommst dieselben Meldungen wie Martin, aber ohne Knöpfe, und nichts, was du hier tust, verändert seine Daten. Frag mich jederzeit nach dem Lagebericht. /pause stoppt die Meldungen, /weiter holt sie zurück.' });
+    return;
+  }
+  const observer = await isObserver(store, chatId);
   if (!text.startsWith('/')) {
     await react(true);
     try {
       const replyTo = m.reply_to_message?.message_id;
-      if (replyTo && (await handleLetterReply(store, chatId, replyTo, text))) return;
+      if (!observer && replyTo && (await handleLetterReply(store, chatId, replyTo, text))) return;
       // Alles, was kein Befehl ist, geht an den Chat-Assistenten (Formular ergänzen, Beratung, Gedächtnis, Konten)
-      await chat(store, chatId, text, m.message_id);
+      await chat(store, chatId, text, m.message_id, observer);
     } finally {
       await react(false);
     }

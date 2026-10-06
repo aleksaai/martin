@@ -47,6 +47,8 @@ async function sendCard(chatId: string, j: StoredJob, ref: string) {
 async function sendBacklog(store: Store, chatId: string): Promise<number> {
   const jobs = await store.recentMatches(14, 30);
   for (const j of jobs) await sendCard(chatId, j, await shortRef(store, j.id));
+  // Für Martin sind sie neu: die 24-Stunden-Erinnerung zählt ab jetzt
+  await store.touchNotified(jobs.map((j) => j.id));
   return jobs.length;
 }
 
@@ -107,7 +109,7 @@ export function startBot(store: Store, triggerRun: () => Promise<string>) {
   ] }).catch(() => {});
 }
 
-async function handle(u: any, store: Store, triggerRun: () => Promise<string>) {
+export async function handle(u: any, store: Store, triggerRun: () => Promise<string>) {
   const subs = await store.subscribers();
   if (u.callback_query) {
     const q = u.callback_query;
@@ -183,11 +185,21 @@ async function handle(u: any, store: Store, triggerRun: () => Promise<string>) {
       await tg('sendMessage', { chat_id: chatId, text: 'Dieser Bot ist privat. Bitte nutze den Einladungslink.' });
       return;
     }
+    // Erste Anmeldung nach der Testphase (Aleksa war Testnutzer): Testdaten weg, Test-Chats pausieren, ab jetzt echter Betrieb
+    const firstReal = !(await store.kvGet('live_since'));
+    if (firstReal) {
+      const others = (await store.subscribers()).filter((x) => x.chat_id !== chatId && !x.paused);
+      await store.resetTestData(chatId);
+      await store.kvSet('live_since', new Date().toISOString());
+      for (const o of others) {
+        await tg('sendMessage', { chat_id: o.chat_id, text: 'Martin ist jetzt angemeldet, der Testbetrieb ist beendet. Deine Testdaten sind gelöscht und dieser Chat ist pausiert. Mit /weiter kannst du wieder mitlesen.' }).catch(() => {});
+      }
+    }
     await store.addSubscriber(chatId, [m.from?.first_name, m.from?.last_name].filter(Boolean).join(' ') || null);
-    await tg('sendMessage', { chat_id: chatId, text: `Hallo ${m.from?.first_name ?? ''}! Du bist angemeldet.\n\n${HELP}` });
+    await tg('sendMessage', { chat_id: chatId, text: `Willkommen an Bord, ${m.from?.first_name ?? 'Kamerad'}!\n\n${HELP}` });
     // Erst nachliefern, was andere schon bekommen haben, dann das noch Offene an alle
     const n = await sendBacklog(store, chatId);
-    if (n) await tg('sendMessage', { chat_id: chatId, text: `Das waren die ${n} passenden Stellen der letzten 14 Tage. Ab jetzt kommen nur noch neue.` });
+    if (n) await tg('sendMessage', { chat_id: chatId, text: `Das waren ${n} passende Stellen aus den letzten zwei Wochen. Ab jetzt melde ich nur noch Neues, dreimal am Tag. Abmarsch, Kamerad!` });
     await notifyPending(store);
     return;
   }

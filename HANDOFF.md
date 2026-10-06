@@ -51,6 +51,11 @@
   sonst Karriereseite). Größeres Suchgebiet → `forgetTooFar` löscht „zu weit“-Aussortierte, damit der nächste Lauf sie neu prüft.
   Chat-Verlauf trägt jetzt „[Werkzeuge ausgeführt: …]“, sonst zweifelte Adolf eigene Aktionen an. Zeitplan läuft im Dienst selbst (kein Railway-Cron),
   `RUN_HOURS` (Standard 7,12,17). Lokale Testläufe (`npm run once`) beenden sich jetzt selbst.
+- **Testbetrieb → echter Betrieb (06.10.):** Aleksa war nur Testnutzer. Die erste `/start <code>`-Anmeldung ohne `kv live_since` löscht einmalig
+  Testdaten (`resetTestData`: Feedback, Bewerbungen, Stilvorlagen aus der DB, Gedächtnis, Sucheinstellungen, Chatverläufe, Konten), pausiert alle
+  anderen Abonnenten (Aleksa bekommt eine Hinweisnachricht, `/weiter` holt ihn zurück) und setzt `live_since`. Martin bekommt alle Treffer der
+  letzten 14 Tage (max. 30) als neu (`touchNotified`, 24-h-Nachfassen zählt ab seinem Start). Bewertete Stellen bleiben, nichts wird neu bezahlt.
+  ⚠️ Danach meldet sich niemand mehr „zum Test“ mit dem Code an, das würde nichts löschen, aber mitlesen.
 - Offen: erster Railway-Build mit Playwright prüfen, Martin anmelden, Martin nennt einmal Starttermin/Stunden (Antwort auf einen Formular-Screenshot
   landet in `kv.answers` und fließt danach auch in die Anschreiben), Immatrikulationsbescheinigung als `data/docs/immatrikulation.pdf`.
 
@@ -64,7 +69,7 @@
   Haiku bewertet gegen `data/profile.md`, Treffer ab 6/10 kommen mit 👍 / 👎 / ✍️ Anschreiben (nur Text).
 - Railway: Service `martin` (GitHub-Repo, Branch main, Auto-Deploy) + `Postgres`. Variablen am Service:
   `TELEGRAM_BOT_TOKEN`, `INVITE_CODE=8fc929ae`, `ANTHROPIC_API_KEY`, `DATABASE_URL=${{Postgres.DATABASE_URL}}`.
-- Angemeldet: nur Aleksa. **Martin meldet sich erst an, wenn Stufe 1–3 fertig sind** (Aleksas Entscheidung):
+- Angemeldet bis zum Start: nur Aleksa (Testnutzer). Martins erste Anmeldung schaltet auf echten Betrieb um (siehe unten):
   Link `https://t.me/<botname>?start=8fc929ae`, oder im Chat `/start 8fc929ae`. Er bekommt dann die Treffer der
   letzten 14 Tage nachgeliefert (`sendBacklog`).
 - Aleksa soll selbst kein 👍/👎 drücken, Feedback hängt an der Stelle, nicht an der Person (der Bot soll Martins Geschmack lernen).

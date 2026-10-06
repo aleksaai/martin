@@ -43,6 +43,13 @@ export interface Store {
   listApplications(): Promise<ApplicationRow[]>;
   /** Stellen nach Firma oder Titel finden (für "hab mich bei X beworben"). */
   findJobs(query: string, limit: number): Promise<StoredJob[]>;
+  /**
+   * Übergang Test → echter Betrieb (wenn Martin sich anmeldet): Testklicks, Test-Bewerbungen, Gedächtnis, Einstellungen und
+   * Chatverläufe löschen, alle anderen Abonnenten pausieren. Bewertete Stellen bleiben, damit nichts doppelt bewertet wird.
+   */
+  resetTestData(keepChatId: string): Promise<void>;
+  /** Für den Neustart: bisherige Treffer erneut als frisch gemeldet markieren. */
+  touchNotified(ids: string[]): Promise<void>;
   /** Wegen Entfernung aussortierte Stellen vergessen, damit der nächste Lauf sie mit neuen Sucheinstellungen prüft. */
   forgetTooFar(): Promise<number>;
   /** Gemeldete Treffer ohne Reaktion (kein 👎, keine Bewerbung) seit mindestens `hours` Stunden. */
@@ -151,6 +158,17 @@ class PgStore implements Store {
   async listApplications() {
     const r = await this.pool.query(`select a.*, j.title, j.company, j.source from applications a join jobs j on j.id = a.job_id order by coalesce(a.applied_at, j.first_seen) desc`);
     return r.rows as ApplicationRow[];
+  }
+  async resetTestData(keepChatId: string) {
+    await this.pool.query(`update jobs set feedback = null`);
+    await this.pool.query(`delete from applications`);
+    await this.pool.query(`delete from letter_examples`);
+    await this.pool.query(`delete from kv where key in ('answers','search_prefs','extra_companies') or key like 'nudged:%' or key like 'hist:%'
+      or key like 'active_job:%' or key like 'pending_portal%' or key like 'cred:%'`);
+    await this.pool.query(`update subscribers set paused = true where chat_id <> $1`, [keepChatId]);
+  }
+  async touchNotified(ids: string[]) {
+    if (ids.length) await this.pool.query(`update jobs set notified_at = now() where id = any($1)`, [ids]);
   }
   async forgetTooFar() {
     const r = await this.pool.query(`delete from jobs where status in ('skipped','low') and skip_reason like 'zu weit%'`);
@@ -262,6 +280,21 @@ class FileStore implements Store {
       const j = this.data.jobs[a.job_id];
       return { ...a, title: j?.title ?? '?', company: j?.company ?? '?', source: j?.source ?? '?' };
     }).sort((a, b) => (b.applied_at ?? '').localeCompare(a.applied_at ?? ''));
+  }
+  async resetTestData(keepChatId: string) {
+    for (const j of Object.values(this.data.jobs)) j.feedback = null;
+    this.data.applications = {};
+    this.data.letters = [];
+    for (const k of Object.keys(this.data.kv)) {
+      if (['answers', 'search_prefs', 'extra_companies'].includes(k) || /^(nudged:|hist:|active_job:|pending_portal|cred:)/.test(k)) delete this.data.kv[k];
+    }
+    for (const sub of this.data.subscribers) if (sub.chat_id !== keepChatId) sub.paused = true;
+    await this.flush();
+  }
+  async touchNotified(ids: string[]) {
+    const now = new Date().toISOString();
+    for (const id of ids) if (this.data.jobs[id]) this.data.jobs[id].notified_at = now;
+    await this.flush();
   }
   async forgetTooFar() {
     const ids = Object.values(this.data.jobs).filter((j) => ['skipped', 'low'].includes(j.status) && (j.skip_reason ?? '').startsWith('zu weit')).map((j) => j.id);

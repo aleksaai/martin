@@ -132,8 +132,9 @@ ${answers || '(keine)'}`, letter, 4000);
 // Betreff-Zeile zählt nicht mit
 const words = (t: string) => t.replace(/^Betreff:.*\n/i, '').trim().split(/\s+/).length;
 
-export async function writeLetter(job: JobText, examples: string[] = [], answers = ''): Promise<string> {
+export async function writeLetter(job: JobText, examples: string[] = [], answers = '', onStep: (s: string) => unknown = () => {}): Promise<string> {
   let letter = await draftLetter(job, examples, answers);
+  await onStep('Prüfe jede Aussage gegen deinen Lebenslauf …');
   const issues = await unsupportedClaims(letter, answers);
   if (issues.length) {
     console.log('Anschreiben: unbelegte Aussagen entfernt:', issues);
@@ -145,10 +146,46 @@ ${issues.map((i) => `- ${i}`).join('\n')}`, letter, 12000);
   }
   // Eine Seite ist Pflicht: zu lange Fassungen einmal straffen
   if (words(letter) > 300) {
+    await onStep('Kürze auf eine Seite …');
     letter = await ask(cfg.letterModel, `Kürze dieses Anschreiben auf höchstens 280 Wörter. Behalte Aufbau, Ton, Anrede, Grußformel und alle
 konkreten Belege, streiche Wiederholungen und allgemeine Sätze. Keine neuen Fakten, keine Gedankenstriche. Die Betreff-Zeile oben unverändert lassen. Nur das Anschreiben ausgeben.`, letter, 12000);
   }
   return letter;
+}
+
+/** Martins Änderungswunsch zu einem Anschreiben umsetzen (z.B. "kürzer", "erwähne die Bachelorarbeit"). */
+export async function reviseLetter(letter: string, wish: string, answers = ''): Promise<string> {
+  const revised = await ask(cfg.letterModel, `Überarbeite das Anschreiben nach Martins Wunsch. Erste Zeile "Betreff: …" beibehalten (nur ändern, wenn er es will).
+Fakten nur aus seinem Profil, nichts erfinden, keine Gedankenstriche, höchstens 290 Wörter. Nur das Anschreiben ausgeben.
+
+Profil:
+${PROFILE}${answers ? `\n\nSeine Zusatzangaben:\n${answers}` : ''}
+
+Martins Wunsch: ${wish}`, letter, 12000);
+  return revised;
+}
+
+/**
+ * Stellen aus der Jobbörse der Arbeitsagentur verstecken den Bewerbungsweg hinter einem Captcha.
+ * Deshalb die Original-Anzeige beim Arbeitgeber per Websuche finden (ca. 2 Cent).
+ */
+export async function findOriginalPosting(job: { title: string; company: string; location?: string | null; description?: string | null }): Promise<string | null> {
+  const ids = (job.description ?? '').match(/(job[- ]?id|referenz(nummer)?|kennziffer|stellen[- ]?id)\s*:?\s*([A-Za-z0-9\-_.]{3,})/i);
+  try {
+    const res = await client.messages.create({
+      model: cfg.scoreModel,
+      max_tokens: 1500,
+      tools: [{ type: 'web_search_20250305', name: 'web_search', max_uses: 3 } as never],
+      system: 'Finde die Original-Stellenanzeige auf der Karriereseite oder im Bewerberportal des Arbeitgebers (nicht Arbeitsagentur, Indeed, Stepstone, LinkedIn, XING, Kimeta, Jobware). Antworte am Ende nur mit JSON: {"url":"…"} oder {"url":null}, wenn du dir nicht sicher bist, dass es genau diese Stelle ist.',
+      messages: [{ role: 'user', content: `Titel: ${job.title}\nArbeitgeber: ${job.company}\nOrt: ${job.location ?? ''}${ids ? `\nKennung: ${ids[3]}` : ''}` }],
+    });
+    const text = res.content.map((b) => (b.type === 'text' ? b.text : '')).join('');
+    const url = JSON.parse(text.slice(text.lastIndexOf('{'), text.lastIndexOf('}') + 1)).url;
+    return typeof url === 'string' && /^https?:\/\//.test(url) && !/arbeitsagentur|indeed|stepstone|linkedin|xing/i.test(url) ? url : null;
+  } catch (e) {
+    console.error('Original-Anzeige nicht gefunden:', (e as Error).message.slice(0, 120));
+    return null;
+  }
 }
 
 /** Kurze Begleitmail, wenn die Anzeige eine Bewerbungsadresse nennt. */

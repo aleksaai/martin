@@ -38,9 +38,12 @@ async function dismissCookies(page: Page) {
 }
 
 async function hasForm(page: Page): Promise<boolean> {
+  // Ein Bewerbungsformular hat einen Datei-Upload oder eine E-Mail plus weitere Felder. Ein einzelnes E-Mail-Feld ist meist ein Job-Alarm.
   for (const f of page.frames()) {
-    const n = await f.locator('input[type=file], input[type=email]').count().catch(() => 0);
-    if (n > 0) return true;
+    const files = await f.locator('input[type=file]').count().catch(() => 0);
+    const emails = await f.locator('input[type=email], input[name*=mail i]').count().catch(() => 0);
+    const texts = await f.locator('input[type=text], input:not([type]), input[type=tel]').count().catch(() => 0);
+    if (files > 0 || (emails > 0 && texts >= 2)) return true;
   }
   return false;
 }
@@ -57,7 +60,16 @@ async function openForm(page: Page, url: string) {
       const el = cands.nth(i);
       const t = ((await el.innerText().catch(() => '')) || '').trim();
       if (t.length < 40 && APPLY.test(t) && !NOT_APPLY.test(t) && (await el.isVisible().catch(() => false))) {
-        await el.click({ timeout: 5000 }).catch(() => {});
+        // Links direkt aufrufen: Knöpfe mit target=_blank öffnen sonst einen neuen Tab, und Cookie-Overlays fangen Klicks ab
+        const rawHref = await el.getAttribute('href').catch(() => null);
+        let href = '';
+        try { href = rawHref && !/^(javascript:|#)/.test(rawHref) ? new URL(rawHref, page.url()).toString() : ''; } catch { /* kein Link */ }
+        console.log(`Bewerben-Knopf: "${t}" → ${href || '(Klick)'}`);
+        if (/^https?:/.test(href) && href.split('#')[0] !== page.url().split('#')[0]) {
+          await page.goto(href, { waitUntil: 'domcontentloaded', timeout: 45_000 }).catch(() => {});
+        } else {
+          await el.click({ timeout: 5000, force: true }).catch(() => {});
+        }
         clicked = true;
       }
     }
@@ -70,38 +82,48 @@ async function openForm(page: Page, url: string) {
 
 const COLLECT_SRC = `function (fi) {
   var res = [];
-  var textOf = function (el) { return ((el && el.textContent) || '').replace(/\\s+/g, ' ').trim(); };
-  var labelFor = function (el) {
-    var id = el.getAttribute('id');
-    var byFor = id ? document.querySelector('label[for="' + CSS.escape(id) + '"]') : null;
-    var lb = el.getAttribute('aria-labelledby');
-    var fs = el.closest('fieldset');
-    return [
-      el.getAttribute('aria-label'), textOf(byFor),
-      lb ? lb.split(' ').map(function (x) { return textOf(document.getElementById(x)); }).join(' ') : '',
-      textOf(el.closest('label')), el.placeholder, el.getAttribute('name'),
-      textOf(fs ? fs.querySelector('legend') : null),
-      textOf(el.parentElement ? el.parentElement.previousElementSibling : null)
-    ].filter(Boolean).join(' | ').slice(0, 300);
-  };
   var n = 0;
-  document.querySelectorAll('input, select, textarea').forEach(function (el) {
-    var type = (el.getAttribute('type') || el.tagName).toLowerCase();
-    if (el.getAttribute('role') === 'combobox' || el.getAttribute('aria-autocomplete') === 'list') type = 'combobox';
-    if (['hidden', 'submit', 'button', 'image', 'reset', 'search'].indexOf(type) >= 0) return;
-    var visible = el.offsetParent !== null || getComputedStyle(el).position === 'fixed';
-    if (!visible && type !== 'file' && type !== 'checkbox' && type !== 'radio') return;
-    var id = 'f' + fi + '_' + (n++);
-    el.setAttribute('data-jr', id);
-    var options;
-    if (el.tagName === 'SELECT') options = Array.prototype.map.call(el.options, function (o) { return o.text.trim(); }).filter(Boolean).slice(0, 60);
-    res.push({ id: id, frame: fi, kind: type, label: labelFor(el) + ((type === 'radio' || type === 'checkbox') ? ' [Wert: ' + el.value + ']' : ''), required: el.required || el.getAttribute('aria-required') === 'true', options: options });
+  var textOf = function (el) { return ((el && el.textContent) || '').replace(/\\s+/g, ' ').trim(); };
+  // Alle Wurzeln einsammeln, auch gekapselte Web-Bausteine (Shadow-DOM, z.B. bei REWE)
+  var roots = [document];
+  for (var r = 0; r < roots.length && r < 400; r++) {
+    roots[r].querySelectorAll('*').forEach(function (e) { if (e.shadowRoot) roots.push(e.shadowRoot); });
+  }
+  roots.forEach(function (root) {
+    var labelFor = function (el) {
+      var id = el.getAttribute('id');
+      var byFor = id ? root.querySelector('label[for="' + CSS.escape(id) + '"]') : null;
+      var lb = el.getAttribute('aria-labelledby');
+      var fs = el.closest('fieldset');
+      var host = root.host ? textOf(root.host.closest('[class*=upload], [class*=field], section') || root.host).slice(0, 160) : '';
+      return [
+        el.getAttribute('aria-label'), textOf(byFor),
+        lb ? lb.split(' ').map(function (x) { return textOf(root.getElementById ? root.getElementById(x) : document.getElementById(x)); }).join(' ') : '',
+        textOf(el.closest('label')), el.placeholder, el.getAttribute('name'),
+        textOf(fs ? fs.querySelector('legend') : null),
+        textOf(el.parentElement ? el.parentElement.previousElementSibling : null),
+        host
+      ].filter(Boolean).join(' | ').slice(0, 300);
+    };
+    root.querySelectorAll('input, select, textarea').forEach(function (el) {
+      var type = (el.getAttribute('type') || el.tagName).toLowerCase();
+      if (el.getAttribute('role') === 'combobox' || el.getAttribute('aria-autocomplete') === 'list') type = 'combobox';
+      if (['hidden', 'submit', 'button', 'image', 'reset', 'search'].indexOf(type) >= 0) return;
+      var visible = el.offsetParent !== null || getComputedStyle(el).position === 'fixed';
+      if (!visible && type !== 'file' && type !== 'checkbox' && type !== 'radio') return;
+      var id = 'f' + fi + '_' + (n++);
+      el.setAttribute('data-jr', id);
+      var options;
+      if (el.tagName === 'SELECT') options = Array.prototype.map.call(el.options, function (o) { return o.text.trim(); }).filter(Boolean).slice(0, 60);
+      res.push({ id: id, frame: fi, kind: type, label: labelFor(el) + ((type === 'radio' || type === 'checkbox') ? ' [Wert: ' + el.value + ']' : ''), required: el.required || el.getAttribute('aria-required') === 'true', options: options });
+    });
   });
   return res;
 }`;
 
 /** Alle Eingabefelder in allen Frames einsammeln und markieren (data-jr). */
 async function collectFields(page: Page): Promise<Field[]> {
+  await dismissCookies(page);
   const out: Field[] = [];
   const frames = page.frames();
   for (let fi = 0; fi < frames.length; fi++) {
@@ -150,6 +172,8 @@ Regeln:
 - "check": IDs von Radio-Buttons oder Checkboxen, die eine Sachfrage beantworten (z.B. Anrede, Studierender ja), nur wenn die Antwort sicher aus seinen Daten folgt.
 - "consent": IDs von Einwilligungs-Checkboxen (Datenschutz, Speicherung, Talentpool nur wenn Pflicht). NICHT in "check" aufnehmen.
 - "offen": kurze deutsche Beschreibung jeder Pflichtangabe, die du NICHT sicher beantworten kannst (z.B. Gehaltsvorstellung, frühester Start, Wochenstunden, Staatsangehörigkeit/Arbeitserlaubnis, Notendurchschnitt, wie er auf die Stelle aufmerksam wurde). Raten ist verboten. Freiwillige unklare Felder einfach leer lassen.
+- Feld "Titel" meint einen akademischen Titel (Dr., Prof.): leer lassen. "Wirtschaftsjurist (LL.B.)" ist KEIN Titel.
+- Freitextfragen nur beantworten, wenn die Antwort sicher aus den Daten folgt; sonst in "offen" aufnehmen, auch wenn sie freiwillig sind, sofern sie für die Bewerbung wichtig wirken (Stunden, Wochentage, Starttermin, Gehalt, Vollzeitstudium).
 - Felder wie Suche, Newsletter, Login, Passwort, Konto anlegen: ignorieren.
 
 Format: {"fill":[{"id":"f0_1","value":"Martin"}],"files":[{"id":"f0_7","doc":"lebenslauf"}],"check":[],"consent":["f0_9"],"offen":["Gehaltsvorstellung"]}`,
@@ -184,7 +208,7 @@ async function applyPlan(s: Session, letter: string): Promise<string[]> {
       if (ok) done.push(s.fields.find((f) => f.id === id)?.label.split(' | ')[0] || id);
       continue;
     }
-    const tag = await el.evaluate('n => n.tagName').catch(() => '');
+    const tag = await el.evaluate((n) => n.tagName).catch(() => '');
     const ok = tag === 'SELECT'
       ? await el.selectOption({ label: v }, { timeout: 4000 }).then(() => true).catch(() => false)
       : await el.fill(v, { timeout: 4000 }).then(() => true).catch(() => false);
@@ -194,11 +218,46 @@ async function applyPlan(s: Session, letter: string): Promise<string[]> {
     const fr = frameOf(s, id); const path = s.files[doc]; if (!fr || !path) continue;
     if (await fr.locator(`[data-jr="${id}"]`).setInputFiles(path, { timeout: 8000 }).then(() => true).catch(() => false)) done.push(`📎 ${doc}`);
   }
+  // Fehlt ein Dokument, Upload-Kacheln über den Dateidialog versuchen
+  const uploaded = new Set(done.filter((d) => d.startsWith('📎')).map((d) => d.slice(3)));
+  if (!uploaded.has('lebenslauf') || !uploaded.has('anschreiben')) done.push(...(await uploadViaChooser(s, uploaded)));
   // Uploads laufen nach setInputFiles noch: warten, damit Screenshot und Absenden sie sehen
   if (done.some((d) => d.startsWith('📎'))) await s.page.waitForTimeout(5000);
   for (const id of s.plan.check) {
     const fr = frameOf(s, id); if (!fr) continue;
     await fr.locator(`[data-jr="${id}"]`).check({ timeout: 3000, force: true }).catch(() => {});
+  }
+  return done;
+}
+
+/** Upload-Kacheln ohne sichtbares Dateifeld (z.B. REWE): Kachel anklicken, Datei über den Dateidialog übergeben. */
+async function uploadViaChooser(s: Session, already: Set<string>): Promise<string[]> {
+  const done: string[] = [];
+  for (const fr of s.page.frames()) {
+    const tiles = fr.locator('button, a, label, [role=button], div').filter({ hasText: /^(\s*\S*\s*)?(lebenslauf|dokument|datei|anschreiben|unterlagen|cv|resume)?\s*(hochladen|upload|hinzufügen|auswählen)\s*$/i });
+    const n = Math.min(await tiles.count().catch(() => 0), 8);
+    for (let i = 0; i < n; i++) {
+      const tile = tiles.nth(i);
+      if (!(await tile.isVisible().catch(() => false))) continue;
+      // Worum es geht, steht in der Kachel oder in der Überschrift davor
+      const context = await tile.evaluate((e) => {
+        let t = e.textContent || '';
+        let p: Element | null = e;
+        for (let k = 0; k < 3 && p; k++) { p = p.previousElementSibling || p.parentElement; if (p) t = (p.textContent || '').slice(0, 120) + ' ' + t; }
+        return t;
+      }).catch(() => '');
+      const doc = /lebenslauf|\bcv\b|resume/i.test(context) && !already.has('lebenslauf') ? 'lebenslauf'
+        : !already.has('anschreiben') && s.files.anschreiben ? 'anschreiben' : null;
+      if (!doc || !s.files[doc]) continue;
+      const chooser = s.page.waitForEvent('filechooser', { timeout: 5000 }).catch(() => null);
+      await tile.click({ timeout: 4000, force: true }).catch(() => {});
+      const fc = await chooser;
+      if (!fc) continue;
+      await fc.setFiles(s.files[doc]);
+      already.add(doc);
+      done.push(`📎 ${doc}`);
+      await s.page.waitForTimeout(2500);
+    }
   }
   return done;
 }
@@ -228,7 +287,7 @@ async function fillAndReport(store: Store, s: Session) {
   const standing = (await store.kvGet('answers')) ?? '';
   s.fields = await collectFields(s.page);
   if (!s.fields.length) {
-    await tg('sendMessage', { chat_id: s.chatId, text: `Ich finde auf der Seite kein Bewerbungsformular. Bitte bewirb dich direkt:\n${s.job.url}` });
+    await tg('sendMessage', { chat_id: s.chatId, text: `Ich finde auf der Seite kein Bewerbungsformular. Bitte bewirb dich direkt:\n${s.page.url()}` });
     close(s.ref);
     return;
   }
@@ -243,14 +302,16 @@ async function fillAndReport(store: Store, s: Session) {
     captcha ? '\n⚠️ Die Seite hat eine Captcha-Prüfung. Falls das Absenden scheitert, schick es bitte selbst über den Link ab.' : '',
     `\nBitte prüf den Screenshot. Abgeschickt wird erst, wenn du auf Absenden tippst.`,
   ].filter(Boolean).join('\n');
-  const rows = [[...(s.plan.offen.length ? [] : [button('✅ Absenden', `send:${s.ref}`)]), button('❌ Abbrechen', `stop:${s.ref}`)], [{ text: '🔗 Selbst öffnen', url: s.job.url }]];
+  const rows = [[...(s.plan.offen.length ? [] : [button('✅ Absenden', `send:${s.ref}`)]), button('❌ Abbrechen', `stop:${s.ref}`)], [{ text: '🔗 Selbst öffnen', url: s.page.url() }]];
   const msg = await screenshot(s, lines, { inline_keyboard: rows });
   await store.kvSet(`form_msg:${s.chatId}:${msg.message_id}`, s.ref);
 }
 
 export async function startForm(store: Store, chatId: string, job: StoredJob, ref: string) {
   close(ref);
-  await tg('sendMessage', { chat_id: chatId, text: 'Ich öffne das Formular und fülle es aus, das dauert etwa eine Minute.' });
+  const wait = await tg('sendMessage', { chat_id: chatId, text: `⏳ Öffne das Bewerbungsformular bei ${job.company} und fülle es aus, das dauert etwa eine Minute …` }).catch(() => null);
+  const dropWait = () => (wait ? tg('deleteMessage', { chat_id: chatId, message_id: wait.message_id }).catch(() => {}) : undefined);
+  const applyUrl = (await store.kvGet(`apply_url:${job.id}`)) ?? job.url;
   const app = await store.getApplication(job.id);
   const dir = mkdtempSync(join(tmpdir(), 'bewerbung-'));
   const files: Record<string, string> = {};
@@ -264,10 +325,12 @@ export async function startForm(store: Store, chatId: string, job: StoredJob, re
   const s: Session = { job, chatId, ref, context, page, fields: [], plan: { fill: [], files: [], check: [], consent: [], offen: [] }, files, extra: '', timer: setTimeout(() => close(ref), 20 * 60_000) };
   sessions.set(ref, s);
   try {
-    await openForm(page, job.url);
+    await openForm(page, applyUrl);
     await fillAndReport(store, s);
+    await dropWait();
   } catch (e) {
-    await tg('sendMessage', { chat_id: chatId, text: `Das Formular konnte ich nicht ausfüllen (${(e as Error).message.slice(0, 120)}). Bitte bewirb dich direkt:\n${job.url}` });
+    await dropWait();
+    await tg('sendMessage', { chat_id: chatId, text: `Das Formular konnte ich nicht ausfüllen (${(e as Error).message.slice(0, 120)}). Bitte bewirb dich direkt:\n${applyUrl}` });
     close(ref);
   }
 }

@@ -16,6 +16,13 @@
   „Auf diese Stelle bewerben“ wurde nicht erkannt; tsx baut `__name` in Funktionen ein, die per `page.evaluate` im Browser laufen sollen → Erfassungs-Skript
   jetzt als Text (`COLLECT_SRC`); selbstgebaute Aufklapplisten (role=combobox) werden geöffnet und ihre Optionen gelesen; nach Uploads 5 s warten.
 - **Knöpfe:** nur noch 📨 Bewerben (zählt als „passt“) und 👎 Passt nicht (Aleksas Wunsch).
+- **Nach Aleksas erstem Test (06.10. nachmittags):** Statuszeile „⏳ …“ mit Schritten statt stummem Warten (`statusLine` in `bewerbung.ts`),
+  Anschreiben nur noch als PDF (Antwort auf das PDF = Änderungswunsch per `reviseLetter`, ab 120 Wörtern oder „Sehr geehrte…“ = eigene Fassung → Stilvorlage),
+  Knopf heißt „🤖 Für mich bewerben“. **BA-Stellen:** Bewerbungsweg liegt bei der Arbeitsagentur hinter einem Captcha (wird nie umgangen) → `findOriginalPosting`
+  sucht per Haiku + `web_search_20250305` die Original-Anzeige beim Arbeitgeber (REWE, EY gefunden; Sprint nicht → Hinweis auf die BA-Sicherheitsabfrage).
+  Gefundene URL in `kv apply_url:<jobId>`. Formular-Fixes: Bewerben-Links werden direkt aufgerufen (target=_blank), Formular erst bei Datei-Upload oder
+  Mail + weitere Felder, Felder auch im Shadow-DOM (REWE), Cookie-Banner vor dem Erfassen nochmal schließen, „Titel“ = akademischer Titel bleibt leer.
+  REWE-Formular im Trockenlauf komplett: Daten, Lebenslauf, Anschreiben; offen nur echte Fragen (Gehalt, Stunden, Wochentage, Start).
 - Offen: erster Railway-Build mit Playwright prüfen, Martin anmelden, Martin nennt einmal Starttermin/Stunden (Antwort auf einen Formular-Screenshot
   landet in `kv.answers` und fließt danach auch in die Anschreiben), Immatrikulationsbescheinigung als `data/docs/immatrikulation.pdf`.
 

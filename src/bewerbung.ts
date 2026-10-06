@@ -1,14 +1,32 @@
 // Bewerbung per Knopf: Anschreiben (Text + PDF), Lebenslauf, Weg zur Bewerbung, Nachverfolgung.
 import { readFileSync } from 'node:fs';
 import { docPath, fileSafe, letterPdf } from './documents.ts';
-import { interviewPrep, writeLetter, writeMail } from './llm.ts';
+import { findOriginalPosting, interviewPrep, reviseLetter, writeLetter, writeMail } from './llm.ts';
 import type { Store } from './store.ts';
 import { button, esc, tg, tgFile } from './tg.ts';
 import type { StoredJob } from './types.ts';
 
-// Portale mit Konto-Pflicht oder ohne direktes Formular: dort bewirbt Martin sich selbst über den Link
-const NO_FORM = new Set(['ba', 'workday', 'successfactors_rss', 'oracle_hcm']);
-export const canFillForm = (job: StoredJob) => !NO_FORM.has(job.source);
+// Portale mit Konto-Pflicht: dort bewirbt Martin sich selbst über den Link.
+// BA-Stellen gehen, wenn die Original-Anzeige beim Arbeitgeber gefunden wurde (findOriginalPosting).
+const NO_FORM = new Set(['workday', 'successfactors_rss', 'oracle_hcm']);
+const ACCOUNT_PORTAL = /myworkdayjobs|successfactors|oraclecloud|taleo|icims|avature|phenom/i;
+export const canFillForm = (source: string, url: string) => !NO_FORM.has(source) && !ACCOUNT_PORTAL.test(url) && !/arbeitsagentur\.de/.test(url);
+
+/** Statuszeile wie bei den anderen Agenten: eine Nachricht, die die Schritte zeigt und am Ende verschwindet. */
+async function statusLine(chatId: string, first: string) {
+  const msg = await tg('sendMessage', { chat_id: chatId, text: `⏳ ${first}` }).catch(() => null);
+  let alive = true;
+  const typing = setInterval(() => { if (alive) void tg('sendChatAction', { chat_id: chatId, action: 'upload_document' }).catch(() => {}); }, 4500);
+  void tg('sendChatAction', { chat_id: chatId, action: 'upload_document' }).catch(() => {});
+  return {
+    step: (text: string) => (msg ? tg('editMessageText', { chat_id: chatId, message_id: msg.message_id, text: `⏳ ${text}` }).catch(() => {}) : undefined),
+    done: async () => {
+      alive = false;
+      clearInterval(typing);
+      if (msg) await tg('deleteMessage', { chat_id: chatId, message_id: msg.message_id }).catch(() => {});
+    },
+  };
+}
 
 export function applicationEmail(text: string | null): string | null {
   const all = [...(text ?? '').matchAll(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi)].map((m) => m[0].toLowerCase());
@@ -18,55 +36,79 @@ export function applicationEmail(text: string | null): string | null {
 
 const DAY = 86_400_000;
 
-async function sendLetterPdf(chatId: string, job: StoredJob, letter: string) {
+/** Anschreiben nur als PDF. Eine Antwort auf dieses PDF ändert es (handleLetterReply). */
+async function sendLetterPdf(store: Store, chatId: string, job: StoredJob, letter: string, caption: string) {
   const pdf = await letterPdf(letter, job);
-  await tgFile('sendDocument', chatId, pdf, `Anschreiben_Martin_Spalevic_${fileSafe(job.company)}.pdf`);
-}
-
-/** Knopf "📨 Bewerben": alles vorbereiten, was Martin zum Abschicken braucht. */
-export async function prepareApplication(store: Store, chatId: string, job: StoredJob, ref: string) {
-  await tg('sendChatAction', { chat_id: chatId, action: 'typing' });
-  const letter = await writeLetter(job, await store.letterExamples(4), (await store.kvGet('answers')) ?? '');
-  await store.upsertApplication({ job_id: job.id, letter });
-  await store.setFeedback(job.id, 'gut');
-
-  const msg = await tg('sendMessage', {
-    chat_id: chatId,
-    text: `✍️ <b>Anschreiben für ${esc(job.title)}</b> bei ${esc(job.company)}\n\n${esc(letter)}\n\n<i>Willst du etwas ändern? Antworte auf diese Nachricht mit deiner fertigen Fassung (lang drücken → Antworten). Dann baue ich das PDF neu und merke mir deinen Stil für die nächsten Anschreiben.</i>`,
-    parse_mode: 'HTML',
-  });
+  const msg = await tgFile('sendDocument', chatId, pdf, `Anschreiben_Martin_Spalevic_${fileSafe(job.company)}.pdf`, { caption });
   await store.kvSet(`letter_msg:${chatId}:${msg.message_id}`, job.id);
-
-  await sendLetterPdf(chatId, job, letter);
-  const cv = docPath('lebenslauf');
-  if (cv) await tgFile('sendDocument', chatId, readFileSync(cv), 'Lebenslauf_Martin_Spalevic.pdf');
-
-  const email = applicationEmail(job.description);
-  const rows: any[][] = [];
-  let how: string;
-  if (email) {
-    const mail = await writeMail(job);
-    how = `📧 Die Anzeige nennt <b>${esc(email)}</b>. Schick dort Anschreiben und Lebenslauf als Anhang hin, zum Beispiel mit diesem Text:\n\n${esc(mail)}`;
-  } else if (canFillForm(job)) {
-    how = `🤖 Ich kann das Bewerbungsformular für dich ausfüllen. Du bekommst einen Screenshot und entscheidest dann, ob es abgeschickt wird.`;
-    rows.push([button('🤖 Formular ausfüllen', `form:${ref}`)]);
-  } else {
-    how = `🔗 Diese Bewerbung läuft über das Portal des Arbeitgebers. Öffne die Anzeige und lade dort Anschreiben und Lebenslauf hoch:\n${esc(job.url)}`;
-  }
-  rows.push([button('✅ Ich habe mich beworben', `ok:${ref}`)]);
-  await tg('sendMessage', { chat_id: chatId, text: how, parse_mode: 'HTML', link_preview_options: { is_disabled: true }, reply_markup: { inline_keyboard: rows } });
 }
 
-/** Antwort auf ein Anschreiben = Martins Endfassung: speichern, PDF neu, als Stilvorlage merken. */
+const LETTER_CAPTION = 'Dein Anschreiben. Etwas ändern? Antworte auf dieses PDF, z.B. „kürzer“ oder „erwähne meine Bachelorarbeit“, oder schick deine eigene Fassung.';
+
+/** Knopf "📨 Bewerben": Anschreiben-PDF, Lebenslauf und der passende Weg zur Bewerbung. */
+export async function prepareApplication(store: Store, chatId: string, job: StoredJob, ref: string) {
+  const status = await statusLine(chatId, `Schreibe dein Anschreiben für ${job.company} …`);
+  try {
+    const answers = (await store.kvGet('answers')) ?? '';
+    const letter = await writeLetter(job, await store.letterExamples(4), answers, status.step);
+    await store.upsertApplication({ job_id: job.id, letter });
+    await store.setFeedback(job.id, 'gut');
+
+    await status.step('Baue das PDF …');
+    await sendLetterPdf(store, chatId, job, letter, LETTER_CAPTION);
+    const cv = docPath('lebenslauf');
+    if (cv) await tgFile('sendDocument', chatId, readFileSync(cv), 'Lebenslauf_Martin_Spalevic.pdf');
+
+    // Bewerbungsweg: Mail aus der Anzeige, sonst Formular beim Arbeitgeber, sonst Link
+    let applyUrl = job.url;
+    if (job.source === 'ba') {
+      await status.step('Suche die Original-Anzeige beim Arbeitgeber …');
+      applyUrl = (await findOriginalPosting(job)) ?? job.url;
+    }
+    await store.kvSet(`apply_url:${job.id}`, applyUrl);
+    const email = applicationEmail(job.description);
+    const rows: any[][] = [];
+    let how: string;
+    if (email) {
+      await status.step('Schreibe die Begleitmail …');
+      const mail = await writeMail(job);
+      how = `📧 Die Anzeige nennt <b>${esc(email)}</b>. Schick dort Anschreiben und Lebenslauf als Anhang hin, zum Beispiel mit diesem Text:\n\n${esc(mail)}`;
+    } else if (canFillForm(job.source, applyUrl)) {
+      how = `🤖 Soll ich mich für dich bewerben? Ich fülle das Formular bei ${esc(job.company)} aus, lade beide PDFs hoch und schicke dir einen Screenshot. Abgeschickt wird erst, wenn du zustimmst.`;
+      rows.push([button('🤖 Für mich bewerben', `form:${ref}`)]);
+    } else if (/arbeitsagentur\.de/.test(applyUrl)) {
+      how = `🔗 Diese Stelle gibt es nur bei der Arbeitsagentur, eine eigene Online-Anzeige des Arbeitgebers habe ich nicht gefunden. Den Bewerbungsweg zeigt die Arbeitsagentur erst nach einer Sicherheitsabfrage: Anzeige öffnen, ganz unten bei „Informationen zur Bewerbung“ die Zeichen eingeben, dann siehst du Mail oder Link.\n${esc(applyUrl)}`;
+    } else {
+      how = `🔗 Diese Bewerbung läuft über ein Portal mit eigenem Konto. Öffne die Anzeige und lade dort beide PDFs hoch:\n${esc(applyUrl)}`;
+    }
+    rows.push([button('✅ Ich habe mich schon beworben', `ok:${ref}`)]);
+    await status.done();
+    await tg('sendMessage', { chat_id: chatId, text: how, parse_mode: 'HTML', link_preview_options: { is_disabled: true }, reply_markup: { inline_keyboard: rows } });
+  } catch (e) {
+    await status.done();
+    await tg('sendMessage', { chat_id: chatId, text: `Da ist etwas schiefgegangen (${(e as Error).message.slice(0, 100)}). Tipp nochmal auf 📨 Bewerben.` });
+    throw e;
+  }
+}
+
+/** Antwort auf das Anschreiben-PDF: lange Antwort = Martins eigene Fassung (wird Stilvorlage), kurze = Änderungswunsch. */
 export async function handleLetterReply(store: Store, chatId: string, replyToId: number, text: string): Promise<boolean> {
   const jobId = await store.kvGet(`letter_msg:${chatId}:${replyToId}`);
   if (!jobId) return false;
   const job = await store.getJob(jobId);
   if (!job) return false;
-  await store.upsertApplication({ job_id: job.id, letter: text });
-  await store.addLetterExample(text);
-  await sendLetterPdf(chatId, job, text);
-  await tg('sendMessage', { chat_id: chatId, text: 'Übernommen. Das PDF oben ist deine Fassung, und ich schreibe die nächsten Anschreiben näher an deinem Stil.' });
+  const own = text.trim().split(/\s+/).length >= 120 || /^sehr geehrte/i.test(text.trim());
+  const status = await statusLine(chatId, own ? 'Übernehme deine Fassung …' : 'Überarbeite das Anschreiben …');
+  try {
+    const current = (await store.getApplication(job.id))?.letter ?? '';
+    const letter = own ? text : await reviseLetter(current, text, (await store.kvGet('answers')) ?? '');
+    await store.upsertApplication({ job_id: job.id, letter });
+    if (own) await store.addLetterExample(text);
+    await status.step('Baue das PDF …');
+    await sendLetterPdf(store, chatId, job, letter, own ? 'Deine Fassung. Ich schreibe die nächsten Anschreiben näher an deinem Stil.' : `Überarbeitet. ${LETTER_CAPTION}`);
+  } finally {
+    await status.done();
+  }
   return true;
 }
 

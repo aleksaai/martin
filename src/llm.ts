@@ -22,7 +22,7 @@ Bewertungsskala "score" (0-10):
 - 0-2: fachfremd (Informatik-Entwicklung, Ingenieurwesen, Marketing, Gastronomie, Verkauf, Lager) oder keine Stelle für Studierende.
 
 "machbar": false, wenn die Stelle für ihn praktisch nicht geht: Vollzeit ohne Studentenstatus, nur für Studierende anderer Fächer
-(z.B. ausdrücklich Informatik), Arbeitsort vor Ort außerhalb von ca. ${cfg.maxKm} km um Erftstadt ohne Vollremote, Remote nur im Ausland,
+(z.B. ausdrücklich Informatik), Arbeitsort vor Ort „außerhalb des Suchgebiets“ (steht bei Ort) ohne Vollremote, Remote nur im Ausland,
 oder verlangt Sprachen/Qualifikationen, die er nicht hat. Sonst true.
 
 "mode": "remote" | "hybrid" | "vor Ort" | "unbekannt", wie es in der Anzeige steht.

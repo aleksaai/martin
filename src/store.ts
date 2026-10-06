@@ -43,6 +43,8 @@ export interface Store {
   listApplications(): Promise<ApplicationRow[]>;
   /** Stellen nach Firma oder Titel finden (für "hab mich bei X beworben"). */
   findJobs(query: string, limit: number): Promise<StoredJob[]>;
+  /** Wegen Entfernung aussortierte Stellen vergessen, damit der nächste Lauf sie mit neuen Sucheinstellungen prüft. */
+  forgetTooFar(): Promise<number>;
   /** Gemeldete Treffer ohne Reaktion (kein 👎, keine Bewerbung) seit mindestens `hours` Stunden. */
   undecided(hours: number, limit: number): Promise<StoredJob[]>;
   addLetterExample(text: string): Promise<void>;
@@ -150,6 +152,10 @@ class PgStore implements Store {
     const r = await this.pool.query(`select a.*, j.title, j.company, j.source from applications a join jobs j on j.id = a.job_id order by coalesce(a.applied_at, j.first_seen) desc`);
     return r.rows as ApplicationRow[];
   }
+  async forgetTooFar() {
+    const r = await this.pool.query(`delete from jobs where status in ('skipped','low') and skip_reason like 'zu weit%'`);
+    return r.rowCount ?? 0;
+  }
   async findJobs(query: string, limit: number) {
     const r = await this.pool.query(
       `select * from jobs where status in ('match','manuell','low') and (company ilike $1 or title ilike $1) order by notified_at desc nulls last, first_seen desc limit $2`,
@@ -256,6 +262,12 @@ class FileStore implements Store {
       const j = this.data.jobs[a.job_id];
       return { ...a, title: j?.title ?? '?', company: j?.company ?? '?', source: j?.source ?? '?' };
     }).sort((a, b) => (b.applied_at ?? '').localeCompare(a.applied_at ?? ''));
+  }
+  async forgetTooFar() {
+    const ids = Object.values(this.data.jobs).filter((j) => ['skipped', 'low'].includes(j.status) && (j.skip_reason ?? '').startsWith('zu weit')).map((j) => j.id);
+    for (const id of ids) delete this.data.jobs[id];
+    await this.flush();
+    return ids.length;
   }
   async findJobs(query: string, limit: number) {
     const q = query.toLowerCase();

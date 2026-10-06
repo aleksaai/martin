@@ -8,6 +8,10 @@ import { PROFILE } from './llm.ts';
 import type { Store } from './store.ts';
 import { tg } from './tg.ts';
 import { overview, recordApplication, updateApplication } from './tracking.ts';
+import { geocode } from './filter.ts';
+import { companyFromUrl, extraCompanies, loadPrefs, prefsText, savePrefs } from './prefs.ts';
+import { listCompany } from './sources/ats.ts';
+import { listHtml } from './sources/html.ts';
 
 const client = new Anthropic({ apiKey: cfg.anthropicKey });
 const HISTORY = 24;
@@ -66,6 +70,30 @@ const TOOLS: Anthropic.Tool[] = [
     input_schema: { type: 'object' as const, properties: {} },
   },
   {
+    name: 'sucheinstellungen',
+    description: 'Zeigt die aktuellen Sucheinstellungen (Umkreis, Zusatzorte, ausgeschlossene/bevorzugte Themen, eigene Firmen).',
+    input_schema: { type: 'object' as const, properties: {} },
+  },
+  {
+    name: 'suche_anpassen',
+    description: 'Ändert die Suche ab dem nächsten Lauf. Nur die Felder angeben, die sich ändern. Remote in ganz Deutschland ist immer dabei.',
+    input_schema: { type: 'object' as const, properties: {
+      umkreis_km: { type: 'number', description: 'Umkreis um Erftstadt für Vor-Ort/Hybrid-Stellen' },
+      ort_hinzufuegen: { type: 'string', description: 'Stadt für Vor-Ort/Hybrid-Stellen, z.B. "Düsseldorf"' },
+      ort_umkreis_km: { type: 'number', description: 'Umkreis für den neuen Ort, Standard 25' },
+      ort_entfernen: { type: 'string' },
+      thema_ausschliessen: { type: 'string', description: 'z.B. "Steuerberatung"' },
+      thema_erlauben: { type: 'string', description: 'Ausschluss wieder aufheben' },
+      schwerpunkt_hinzufuegen: { type: 'string', description: 'z.B. "Datenschutz"' },
+      schwerpunkt_entfernen: { type: 'string' },
+    } },
+  },
+  {
+    name: 'firma_hinzufuegen',
+    description: 'Nimmt eine Firma zusätzlich in die tägliche Suche auf. Braucht die URL der Karriereseite oder Stellenliste (falls unbekannt, vorher per web_search finden).',
+    input_schema: { type: 'object' as const, properties: { name: { type: 'string' }, karriereseite: { type: 'string' } }, required: ['name', 'karriereseite'] },
+  },
+  {
     name: 'merken',
     description: 'Speichert eine Angabe dauerhaft in Martins Profil-Datenbank (fließt in alle künftigen Anschreiben und Formulare ein). NUR aufrufen, wenn Martin ausdrücklich zugestimmt hat.',
     input_schema: { type: 'object' as const, properties: { fakt: { type: 'string', description: 'Ein Satz, z.B. "Frühester Starttermin: 1.11.2026"' } }, required: ['fakt'] },
@@ -105,6 +133,9 @@ Was du tun kannst:
   Bei Gehaltsfragen: Spanne nennen, eine konkrete Empfehlung mit einem Satz Begründung. Formulare fragen oft Jahresbrutto:
   Stundenlohn × Wochenstunden × 52. Nenne nur Zahlen, die du in der Recherche wirklich gefunden hast, Quelle in drei Wörtern.
 - Einschätzungen und Tipps zu Stellen, Firmen und Bewerbungen geben.
+- Die Suche anpassen (suche_anpassen, sucheinstellungen): Umkreis, zusätzliche Städte für Vor-Ort-Stellen, Themen ausschließen
+  oder bevorzugen. Remote aus ganz Deutschland ist immer dabei, das musst du nicht einstellen. Weitere Firmen aufnehmen
+  (firma_hinzufuegen): Karriereseite vorher per web_search finden, wenn Martin keine URL nennt.
 - Bewerbungs-Tracking: Sagt Martin, dass er sich irgendwo beworben hat (auch selbst, per Mail, LinkedIn), trag es mit
   bewerbung_eintragen ein. Einladung, Absage (Grund erfragen und notieren), Zusage: bewerbung_aktualisieren.
   „Wie läuft's?“, „Lagebericht“, „wie viele Bewerbungen“: bewerbungen_uebersicht und knapp zusammenfassen, gern mit Ansporn.
@@ -115,9 +146,10 @@ eine Anleitung mit vorgeschlagenem Passwort. Hat er schon ein Konto und schreibt
 danach formular_oeffnen. Wiederhole Passwörter nie im Text. Mehrseitige Formulare: formular_weiter.
 Wenn ein Werkzeug schon geantwortet hat und du nichts Neues zu sagen hast, antworte genau mit [STILL].
 
+Im Verlauf steht vor deinen früheren Antworten „[Werkzeuge ausgeführt: …]“: diese Aktionen sind wirklich passiert, zweifle sie nicht an.
 Ehrlichkeit: Behaupte nie, etwas eingetragen, gespeichert, geändert oder ausgefüllt zu haben, ohne das Werkzeug in dieser
-Antwort wirklich aufgerufen zu haben. Versprich nichts, was du nicht kannst. Stellen suchen kannst du im Chat nicht: das läuft
-automatisch um 7, 12 und 17 Uhr, sofort mit /suche. Erkenntnisse für die Stellenauswahl (z.B. „Großkanzleien verlangen oft
+Antwort wirklich aufgerufen zu haben. Versprich nichts, was du nicht kannst. Einen Suchlauf starten kannst du im Chat nicht: der läuft
+automatisch um 7, 12 und 17 Uhr, sofort mit /suche. Die Suche einstellen kannst du aber (suche_anpassen). Erkenntnisse für die Stellenauswahl (z.B. „Großkanzleien verlangen oft
 das erste Staatsexamen“) kannst du mit merken festhalten, dann berücksichtigt die Bewertung das künftig.
 
 Grenzen: Abschicken kannst du nicht, das macht Martin mit dem Knopf „Absenden“ unter dem Screenshot. Erfinde nichts über Martin.
@@ -183,6 +215,46 @@ async function runTool(store: Store, chatId: string, name: string, input: any, c
       return updateApplication(store, String(input.suche ?? ''), String(input.status ?? ''), input.notiz);
     case 'bewerbungen_uebersicht':
       return overview(store);
+    case 'sucheinstellungen':
+      return prefsText(await loadPrefs(store), await extraCompanies(store));
+    case 'suche_anpassen': {
+      const p = await loadPrefs(store);
+      const notes: string[] = [];
+      let wider = false;
+      if (typeof input.umkreis_km === 'number' && input.umkreis_km > 0) { wider ||= input.umkreis_km > p.maxKm; p.maxKm = Math.min(Math.round(input.umkreis_km), 300); notes.push(`Umkreis Erftstadt ${p.maxKm} km`); }
+      if (input.ort_hinzufuegen) {
+        const geo = await geocode(String(input.ort_hinzufuegen), store);
+        if (!geo) notes.push(`Ort „${input.ort_hinzufuegen}“ nicht gefunden`);
+        else {
+          const km = Math.min(Math.max(Number(input.ort_umkreis_km) || 25, 5), 200);
+          p.places = [...p.places.filter((x) => x.name.toLowerCase() !== String(input.ort_hinzufuegen).toLowerCase()), { name: String(input.ort_hinzufuegen), ...geo, km }];
+          wider = true;
+          notes.push(`${input.ort_hinzufuegen} mit ${km} km dazu`);
+        }
+      }
+      if (input.ort_entfernen) { p.places = p.places.filter((x) => x.name.toLowerCase() !== String(input.ort_entfernen).toLowerCase()); notes.push(`${input.ort_entfernen} entfernt`); }
+      if (input.thema_ausschliessen) { p.exclude = [...new Set([...p.exclude, String(input.thema_ausschliessen)])]; notes.push(`ausgeschlossen: ${input.thema_ausschliessen}`); }
+      if (input.thema_erlauben) { p.exclude = p.exclude.filter((x) => x.toLowerCase() !== String(input.thema_erlauben).toLowerCase()); notes.push(`wieder erlaubt: ${input.thema_erlauben}`); }
+      if (input.schwerpunkt_hinzufuegen) { p.focus = [...new Set([...p.focus, String(input.schwerpunkt_hinzufuegen)])]; notes.push(`Schwerpunkt: ${input.schwerpunkt_hinzufuegen}`); }
+      if (input.schwerpunkt_entfernen) { p.focus = p.focus.filter((x) => x.toLowerCase() !== String(input.schwerpunkt_entfernen).toLowerCase()); notes.push(`Schwerpunkt entfernt: ${input.schwerpunkt_entfernen}`); }
+      await savePrefs(store, p);
+      // Größeres Gebiet: früher als „zu weit“ aussortierte Stellen beim nächsten Lauf neu prüfen
+      const reopened = wider ? await store.forgetTooFar() : 0;
+      return `Gespeichert: ${notes.join('; ') || 'nichts geändert'}. Gilt ab dem nächsten Suchlauf (7, 12, 17 Uhr oder sofort mit /suche).${reopened ? ` ${reopened} früher zu weit entfernte Stellen werden dabei neu geprüft.` : ''}`;
+    }
+    case 'firma_hinzufuegen': {
+      let company;
+      try { company = companyFromUrl(String(input.name), String(input.karriereseite)); } catch { return 'Ungültige URL.'; }
+      let found = 0;
+      try {
+        found = (company.ats.type === 'html' ? await listHtml(company, store) : await listCompany(company)).length;
+      } catch (e) {
+        return `Seite nicht lesbar (${(e as Error).message.slice(0, 80)}). Andere URL versuchen, am besten die Stellenliste selbst.`;
+      }
+      const list = (await extraCompanies(store)).filter((c) => c.name.toLowerCase() !== company.name.toLowerCase());
+      await store.kvSet('extra_companies', JSON.stringify([...list, company]));
+      return `${company.name} ist in der Suche (${company.ats.type === 'html' ? 'Karriereseite' : company.ats.type}), aktuell ${found} Stellen dort insgesamt. Passende kommen beim nächsten Lauf.`;
+    }
     case 'merken': {
       const prev = (await store.kvGet('answers')) ?? '';
       const fakt = String(input.fakt ?? '').trim();
@@ -222,6 +294,7 @@ async function turn(store: Store, chatId: string, text: string, messageId?: numb
   let reply = '';
   let sentByTool = false;
   let secret = false;
+  const toolsUsed: string[] = [];
   try {
     for (let i = 0; i < 8; i++) {
       const res = await client.messages.create({
@@ -241,6 +314,7 @@ async function turn(store: Store, chatId: string, text: string, messageId?: numb
       const results = [];
       for (const u of uses) {
         if (SENDS_ITSELF.has(u.name)) sentByTool = true;
+        toolsUsed.push(u.name);
         if (u.name === 'konto_hinterlegen') secret = true;
         results.push({ type: 'tool_result', tool_use_id: u.id, content: await runTool(store, chatId, u.name, u.input, { messageId }) });
       }
@@ -253,6 +327,6 @@ async function turn(store: Store, chatId: string, text: string, messageId?: numb
   // Hat ein Werkzeug schon Bild/PDF mit Text geschickt, keine zweite Nachricht hinterher (außer echte Rückfrage)
   if (sentByTool && !reply.includes('?')) reply = '';
   if (reply) await tg('sendMessage', { chat_id: chatId, text: reply.slice(0, 4000), link_preview_options: { is_disabled: true } });
-  const saved: Msg[] = [...history, { role: 'user' as const, content: secret ? '(Zugangsdaten für ein Portal, gelöscht)' : text }, { role: 'assistant' as const, content: reply || '(Werkzeug ausgeführt)' }].slice(-HISTORY);
+  const saved: Msg[] = [...history, { role: 'user' as const, content: secret ? '(Zugangsdaten für ein Portal, gelöscht)' : text }, { role: 'assistant' as const, content: `${toolsUsed.length ? `[Werkzeuge ausgeführt: ${[...new Set(toolsUsed)].join(', ')}] ` : ''}${reply || '(nur Werkzeug, keine Textantwort)'}` }].slice(-HISTORY);
   await store.kvSet(`hist:${chatId}`, JSON.stringify(saved));
 }

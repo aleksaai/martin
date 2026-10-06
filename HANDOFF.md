@@ -45,6 +45,12 @@
   **Persona „Adolf“:** Bundeswehr-Ausbilder, sagt „Kamerad“, zackig, mal ruppig, aber hilfreich; harte Regel gegen jede NS-Anspielung.
   Gilt nur im Chat und in Bot-Texten, Anschreiben/Formulare bleiben in Martins Stil. Gemerkte Erkenntnisse (`kv answers`) fließen auch in die Stellenbewertung.
   Railway-Variable `VAULT_KEY` ist seit 06.10. gesetzt (Aleksa).
+- **Sucheinstellungen im Chat (06.10. abends, `src/prefs.ts`):** `kv search_prefs` = Umkreis um Erftstadt (Start: `MAX_KM`), Zusatzorte mit
+  eigenem Umkreis (BA-Umkreissuche + Ortsprüfung je Ort), ausgeschlossene/bevorzugte Themen (fließen in die Haiku-Bewertung),
+  `kv extra_companies` = von Martin genannte Firmen (`companyFromUrl` erkennt Personio, Greenhouse, Lever, Recruitee, Ashby, Workday, Teamtailor,
+  sonst Karriereseite). Größeres Suchgebiet → `forgetTooFar` löscht „zu weit“-Aussortierte, damit der nächste Lauf sie neu prüft.
+  Chat-Verlauf trägt jetzt „[Werkzeuge ausgeführt: …]“, sonst zweifelte Adolf eigene Aktionen an. Zeitplan läuft im Dienst selbst (kein Railway-Cron),
+  `RUN_HOURS` (Standard 7,12,17). Lokale Testläufe (`npm run once`) beenden sich jetzt selbst.
 - Offen: erster Railway-Build mit Playwright prüfen, Martin anmelden, Martin nennt einmal Starttermin/Stunden (Antwort auf einen Formular-Screenshot
   landet in `kv.answers` und fließt danach auch in die Anschreiben), Immatrikulationsbescheinigung als `data/docs/immatrikulation.pdf`.
 

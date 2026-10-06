@@ -11,3 +11,5 @@ if (r.errors.length) console.log(`Fehler (${r.errors.length}):\n  ${r.errors.joi
 const top = await store.pending(50);
 console.log('\nTreffer:');
 for (const j of top) console.log(`${j.score}/10  ${j.title} | ${j.company} | ${j.location}${j.distance_km !== null ? ` (${j.distance_km} km)` : ''} | ${j.mode}\n       ${j.reason}\n       ${j.url}`);
+// Offene Verbindungen und Zeitgeber würden den Prozess sonst am Leben halten
+process.exit(0);

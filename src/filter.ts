@@ -3,6 +3,7 @@ import { cfg } from './config.ts';
 import { fetchJson, sleep } from './http.ts';
 import type { RawJob } from './types.ts';
 import type { Store } from './store.ts';
+import type { Place } from './prefs.ts';
 
 const STUDENT = /werk\s?student|working student|student(ische[rnm]?)?\s*(hilfskraft|mitarbeit|aushilfe|assistent|assistant|job)|studentjob|student worker|wissenschaftliche[rnm]?\s+mitarbeiter|wiss\.\s*mitarbeiter|studierende/i;
 // Rollen, die trotz Treffer sicher nicht passen
@@ -36,7 +37,7 @@ const KNOWN: Record<string, [number, number]> = {
   frankfurt: [50.1109, 8.6821], stuttgart: [48.7758, 9.1829], essen: [51.4556, 7.0116], dortmund: [51.5136, 7.4653],
 };
 
-async function geocode(label: string, store: Store): Promise<{ lat: number; lon: number } | null> {
+export async function geocode(label: string, store: Store): Promise<{ lat: number; lon: number } | null> {
   const key = label.toLowerCase().trim();
   for (const [name, [lat, lon]] of Object.entries(KNOWN)) {
     if (new RegExp(`(^|[^a-zäöüß])${name}([^a-zäöüß]|$)`).test(key)) return { lat, lon };
@@ -54,31 +55,34 @@ async function geocode(label: string, store: Store): Promise<{ lat: number; lon:
   }
 }
 
-export interface PlaceVerdict { ok: boolean; reason?: string; distance: number | null; label: string }
+export interface PlaceVerdict { ok: boolean; reason?: string; distance: number | null; label: string; inRadius: boolean; near: string }
 
-/** Remote in Deutschland: überall. Vor Ort/hybrid: nur bis MAX_KM um Erftstadt. */
-export async function placeCheck(job: RawJob, store: Store): Promise<PlaceVerdict> {
+/** Remote in Deutschland: überall. Vor Ort/hybrid: im Umkreis eines Suchmittelpunkts (Erftstadt + Martins Zusatzorte). */
+export async function placeCheck(job: RawJob, store: Store, places: Place[]): Promise<PlaceVerdict> {
   const labels = job.locations.map((l) => l.label).filter(Boolean);
   const label = labels.join(' / ') || (job.mode === 'remote' ? 'Remote' : 'ohne Ortsangabe');
-  let best: number | null = null;
+  let best: number | null = null; // Entfernung zu Erftstadt (für die Anzeige)
+  let hit: { place: Place; d: number } | null = null;
   for (const l of job.locations) {
     const p = l.lat && l.lon ? { lat: l.lat, lon: l.lon } : l.label && !/^remote$/i.test(l.label.trim()) ? await geocode(l.label, store) : null;
-    if (p) {
-      const d = distanceKm(cfg.home, p);
-      if (best === null || d < best) best = d;
+    if (!p) continue;
+    const dHome = distanceKm(places[0], p);
+    if (best === null || dHome < best) best = dHome;
+    for (const o of places) {
+      const d = distanceKm(o, p);
+      if (d <= o.km && (!hit || d < hit.d)) hit = { place: o, d };
     }
   }
-  if (best !== null && best <= cfg.maxKm) return { ok: true, distance: best, label };
+  const near = hit ? `${hit.d} km von ${hit.place.name}` : best !== null ? `${best} km von Erftstadt` : '';
+  if (hit) return { ok: true, distance: hit.place.name === 'Erftstadt' ? hit.d : best, label, inRadius: true, near };
   if (job.mode === 'remote') {
     const text = labels.join(' ');
-    if (text && FOREIGN.test(text) && !GERMANY.test(text)) return { ok: false, reason: 'remote, aber im Ausland', distance: best, label };
-    return { ok: true, distance: best, label };
+    if (text && FOREIGN.test(text) && !GERMANY.test(text)) return { ok: false, reason: 'remote, aber im Ausland', distance: best, label, inRadius: false, near };
+    return { ok: true, distance: best, label, inRadius: false, near };
   }
   // Ohne erkennbaren Modus und ohne Ort: Modell soll entscheiden
-  if (best === null && job.mode === 'unbekannt') return { ok: true, distance: null, label };
-  // Ort zu weit, Remote könnte trotzdem im Text stehen: BA-Detail oder Modell klären das
-  if (job.mode === 'unbekannt' || job.mode === 'hybrid') return { ok: false, reason: `zu weit (${best} km)`, distance: best, label };
-  return { ok: false, reason: `zu weit (${best} km)`, distance: best, label };
+  if (best === null && job.mode === 'unbekannt') return { ok: true, distance: null, label, inRadius: true, near };
+  return { ok: false, reason: `zu weit (${best} km)`, distance: best, label, inRadius: false, near };
 }
 
 /** Für Duplikate über Quellen hinweg (gleiche Stelle bei BA und im Firmen-Feed). */

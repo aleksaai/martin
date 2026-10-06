@@ -3,6 +3,7 @@ import { readFileSync, existsSync } from 'node:fs';
 import { cfg } from './config.ts';
 import { dedupeKey, placeCheck, studentCheck } from './filter.ts';
 import { scoreJob } from './llm.ts';
+import { extraCompanies, loadPrefs, origins, prefsForScoring } from './prefs.ts';
 import { enrichBa, listBa } from './sources/ba.ts';
 import { enrichAts, listCompany } from './sources/ats.ts';
 import { enrichHtml, listHtml } from './sources/html.ts';
@@ -37,9 +38,11 @@ export async function runOnce(store: Store, log = console.log): Promise<RunRepor
   const report: RunReport = { fetched: 0, fresh: 0, scored: 0, matches: 0, errors: [], bySource: {} };
   const jobs: { job: RawJob; company?: Company }[] = [];
 
+  const prefs = await loadPrefs(store);
+  const places = origins(prefs);
   if (!cfg.sourcesOff.includes('ba')) {
     try {
-      const ba = await listBa();
+      const ba = await listBa(prefs.places);
       jobs.push(...ba.map((job) => ({ job })));
       report.bySource.ba = ba.length;
     } catch (e) {
@@ -47,7 +50,7 @@ export async function runOnce(store: Store, log = console.log): Promise<RunRepor
     }
   }
 
-  const companies = loadCompanies().filter((c) => !cfg.sourcesOff.includes(c.ats.type));
+  const companies = [...loadCompanies(), ...(await extraCompanies(store))].filter((c) => !cfg.sourcesOff.includes(c.ats.type));
   // Wenige gleichzeitig, damit kein Anbieter uns drosselt
   // Fortlaufender Pool statt Pakete: eine langsame Kanzleiseite hält nicht neun andere auf
   let nextCompany = 0;
@@ -67,7 +70,7 @@ export async function runOnce(store: Store, log = console.log): Promise<RunRepor
   }));
   report.fetched = jobs.length;
 
-  const facts = (await store.kvGet('answers')) ?? '';
+  const facts = [(await store.kvGet('answers')) ?? '', prefsForScoring(prefs)].filter(Boolean).join('\n');
   const calibration = (await store.recentFeedback(15)).map((f) => `${f.feedback === 'gut' ? '👍' : '👎'} ${f.title} (${f.company})`).join('\n');
 
   // Innerhalb eines Laufs doppelte Stellen (z.B. mehrere BA-Suchbegriffe) nur einmal prüfen
@@ -95,7 +98,7 @@ export async function runOnce(store: Store, log = console.log): Promise<RunRepor
     if (notStudent) { await store.saveJob({ ...base, skip_reason: notStudent }); return; }
 
     let job = raw;
-    let place = await placeCheck(job, store);
+    let place = await placeCheck(job, store, places);
     // Zu weit: vielleicht trotzdem remote. Beschreibung holen und nachsehen.
     if (!place.ok && place.reason?.startsWith('zu weit')) {
       job = await enrich(job, company);
@@ -107,12 +110,12 @@ export async function runOnce(store: Store, log = console.log): Promise<RunRepor
     }
     if (!job.description) job = await enrich(job, company);
 
-    const placeText = place.distance !== null ? `${place.label} (${place.distance} km von Erftstadt)` : place.label;
+    const placeText = place.near ? `${place.label} (${place.near}${place.inRadius ? ', im Suchgebiet' : ', außerhalb des Suchgebiets'})` : place.label;
     try {
       const v = await scoreJob(job, placeText, calibration, facts);
       report.scored++;
       // Weiter weg als MAX_KM zählt nur, wenn die Stelle wirklich vollremote ist
-      const tooFar = place.distance !== null && place.distance > cfg.maxKm && v.mode !== 'remote';
+      const tooFar = !place.inRadius && v.mode !== 'remote';
       const isMatch = v.machbar && !tooFar && v.score >= cfg.minScore;
       if (isMatch) report.matches++;
       await store.saveJob({

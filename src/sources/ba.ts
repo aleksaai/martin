@@ -2,6 +2,7 @@
 // Liste über v6, Details (Beschreibung, Homeoffice) nur über v4 mit base64-Referenznummer.
 import { fetchJson, sleep } from '../http.ts';
 import type { RawJob } from '../types.ts';
+import type { Place } from '../prefs.ts';
 
 const BASE = 'https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc';
 const HEADERS = { 'X-API-Key': 'jobboerse-jobsuche' };
@@ -49,10 +50,14 @@ async function search(params: Record<string, string>): Promise<BaItem[]> {
   return out;
 }
 
-export async function listBa(): Promise<RawJob[]> {
+export async function listBa(extraPlaces: Place[] = []): Promise<RawJob[]> {
   const seen = new Map<string, BaItem>();
   for (const was of LOCAL_QUERIES) {
     for (const i of await search({ was, wo: 'Erftstadt', umkreis: '50' })) seen.set(i.referenznummer, i);
+    // Von Martin hinzugefügte Orte (z.B. Düsseldorf, Berlin) mit ihrem Umkreis
+    for (const p of extraPlaces) {
+      for (const i of await search({ was, wo: p.name, umkreis: String(Math.min(Math.max(p.km, 10), 200)) })) seen.set(i.referenznummer, i);
+    }
   }
   for (const was of REMOTE_QUERIES) {
     for (const i of await search({ was })) seen.set(i.referenznummer, i);

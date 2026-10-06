@@ -42,5 +42,8 @@ Schnittstelle von Recht und Technologie: rechtliche Anforderungen in digitale, p
 Legal Operations, Compliance-Workflows wie KYC/AML). Will nicht nur abstrakte Rechtsfragen bearbeiten, sondern sehen, wie Recht
 im Unternehmen umgesetzt wird. Arbeitet gern eigenständig an offenen Fragestellungen und im Austausch mit anderen.
 
+## Staatsangehörigkeit
+Deutsch (keine Arbeitserlaubnis nötig).
+
 ## Sprachen
 Deutsch (Muttersprache), Serbisch (Muttersprache), Englisch C2.

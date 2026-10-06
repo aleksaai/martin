@@ -1,4 +1,23 @@
-# HANDOFF: Martins Jobradar (Stand 2026-10-05 abends, Mac mini)
+# HANDOFF: Martins Jobradar (Stand 2026-10-06, Mac mini)
+
+### Was wurde in dieser Session gemacht (2026-10-06)
+- **Ausbau Stufe 1–3 getestet und nach `main` gemergt = live** (Railway baut ab jetzt per Dockerfile mit Playwright-Image).
+- Martins vier echte Anschreiben (fino, Vestlane, Lawfit, Louco) liegen als Stilvorlagen in `data/letters/`. Neu im Profil: Bachelorarbeit
+  zu Pflichten/Haftung des Geldwäschebeauftragten + künftiger EU-Geldwäscherecht, Einblicke Vertrieb/Rechnungswesen/Controlling, Ziel Staatsexamen.
+- **Anschreiben-PDF neu als DIN-5008-Geschäftsbrief** mit Martins Logo (`data/docs/logo.png`, Navy #0D1625): Kopf wie Lebenslauf,
+  Rücksendezeile, Empfänger (+ „z. Hd.“ aus der Anrede), Ort/Datum, Betreff (vom Modell grammatisch korrekt, erste Zeile `Betreff: …`),
+  Grußformel, Anlage. Passt immer auf eine Seite (Schrift ≥ 9 pt, sonst kürzt der Bot den Text auf ≤ 280 Wörter). Aleksa: „Genauso formatiert muss das sein.“
+- **Faktenprüfung:** Haiku gleicht jedes Anschreiben mit dem Profil ab, unbelegte Aussagen werden entfernt (Anlass: Testbrief behauptete „Microsoft 365“).
+- **Sonnet 5.5 denkt vor der Antwort** und verbraucht dabei Tokens: Budgets in `llm.ts`/`apply.ts` auf 8–16k erhöht, vorher brachen Briefe mitten im Satz ab.
+- **Feed-Abruf:** alle 129 Feeds laufen (7.449 Stellen, 321 Studentenrollen). Gestriges „Hängen“ war nur die Ausgabe-Umleitung. Abruf jetzt als
+  Pool mit 10 parallel, 45 s je Firma. Erster Gesamtlauf lokal: 9 neue Treffer, u.a. Oppenhoff IT- & Datenrecht, Kliemt, YPOG, Meilicke Hoffmann, KPMG Law.
+  16 Kanzlei-/Konzernseiten scheitern (403 oder nicht erreichbar, Liste im Lauf-Log), ist hingenommen.
+- **Formular-Trockenlauf** (`scripts/test-form.ts`, schickt NIE ab) an GÖRG/Personio und IONOS/Greenhouse erfolgreich. Behoben: Knopftext
+  „Auf diese Stelle bewerben“ wurde nicht erkannt; tsx baut `__name` in Funktionen ein, die per `page.evaluate` im Browser laufen sollen → Erfassungs-Skript
+  jetzt als Text (`COLLECT_SRC`); selbstgebaute Aufklapplisten (role=combobox) werden geöffnet und ihre Optionen gelesen; nach Uploads 5 s warten.
+- **Knöpfe:** nur noch 📨 Bewerben (zählt als „passt“) und 👎 Passt nicht (Aleksas Wunsch).
+- Offen: erster Railway-Build mit Playwright prüfen, Martin anmelden, Martin nennt einmal Starttermin/Stunden (Antwort auf einen Formular-Screenshot
+  landet in `kv.answers` und fließt danach auch in die Anschreiben), Immatrikulationsbescheinigung als `data/docs/immatrikulation.pdf`.
 
 ### Was wurde in dieser Session gemacht (2026-10-05)
 - Projekt von null gebaut, Repo `aleksaai/martin`, Railway-Projekt „martin“ mit Postgres, Bot bei BotFather angelegt, Variablen gesetzt, BA-Suche live.
@@ -17,7 +36,7 @@
 - Erster Probelauf (BA): 237 Stellen bewertet, 13–14 Treffer, Top: REWE Legal Operations (9), EY Law Rechtsberatung (9),
   Sprint Sanierung Recht (8). Danach viele Steuerstellen mit 6/10. Aleksa will die Schwelle bei 6 lassen.
 
-## In Arbeit (Branch `ausbau`, NICHT deployt, nur typgeprüft, NICHTS davon echt getestet)
+## Ausbau (seit 2026-10-06 live auf `main`; Details zum Bau, Stand 05.10.)
 
 ### Stufe 1: mehr Stellen
 - `data/companies.json`: 245 Firmen (57 Kanzlei, 53 Rechtsabteilung, 36 Legal Tech, 70 SaaS, 29 Beratung), 129 mit live

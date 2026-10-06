@@ -7,7 +7,8 @@ import Anthropic from '@anthropic-ai/sdk';
 import type { BrowserContext, Frame, Page } from 'playwright';
 import { getBrowser } from './browser.ts';
 import { cfg } from './config.ts';
-import { CONTACT, docPath, fileSafe, letterPdf } from './documents.ts';
+import { CONTACT, fileSafe, letterPdf } from './documents.ts';
+import { materialize } from './uploads.ts';
 import { findOriginalPosting, PROFILE } from './llm.ts';
 import type { Store } from './store.ts';
 import { button, esc, tg, tgFile } from './tg.ts';
@@ -18,7 +19,7 @@ const client = new Anthropic({ apiKey: cfg.anthropicKey });
 
 interface Field { id: string; frame: number; kind: string; label: string; required: boolean; options?: string[] }
 interface Plan { fill: { id: string; value: string }[]; files: { id: string; doc: string }[]; check: string[]; consent: string[]; offen: string[] }
-interface Session { job: StoredJob; chatId: string; ref: string; context: BrowserContext; page: Page; fields: Field[]; plan: Plan; files: Record<string, string>; timer: NodeJS.Timeout; extra: string }
+interface Session { job: StoredJob; chatId: string; ref: string; context: BrowserContext; page: Page; fields: Field[]; plan: Plan; files: Record<string, string[]>; timer: NodeJS.Timeout; extra: string }
 
 const sessions = new Map<string, Session>();
 
@@ -201,7 +202,7 @@ async function collectFields(page: Page): Promise<Field[]> {
   return out;
 }
 
-async function planFill(job: StoredJob, fields: Field[], letter: string, extra: string): Promise<Plan> {
+async function planFill(job: StoredJob, fields: Field[], letter: string, extra: string, available: string[]): Promise<Plan> {
   const res = await client.messages.create({
     model: cfg.letterModel,
     max_tokens: 16000, // Sonnet denkt vorher nach
@@ -216,11 +217,11 @@ ${PROFILE}
 Zusätzliche Angaben von Martin (haben Vorrang):
 ${extra || '(keine)'}
 
-Dokumente zum Hochladen: "lebenslauf", "anschreiben"${docPath('immatrikulation') ? ', "immatrikulation"' : ''}.
+Dokumente zum Hochladen (nur diese gibt es): ${available.map((d) => `"${d}"`).join(', ')}.
 
 Regeln:
 - "fill": Textfelder und Auswahllisten (auch kind "combobox"). Bei Auswahllisten exakt einen Optionstext aus "options" als value. Für Herkunftsfragen (wie aufmerksam geworden) die Option für Website/Karriereseite/Internet/Jobbörse wählen, falls vorhanden. Telefon-Ländervorwahl: Deutschland/Germany (+49). Textfeld für Anschreiben/Nachricht/Motivation/Cover Letter: value = "__ANSCHREIBEN__".
-- "files": Datei-Felder. Lebenslauf/CV/Resume -> "lebenslauf", Anschreiben/Cover Letter/Motivationsschreiben -> "anschreiben", Immatrikulation/Studienbescheinigung -> "immatrikulation". Gibt es nur ein Datei-Feld für alle Unterlagen: "lebenslauf". Nicht vorhandenes Dokument weglassen.
+- "files": Datei-Felder. Lebenslauf/CV/Resume -> "lebenslauf", Anschreiben/Cover Letter/Motivationsschreiben -> "anschreiben", Immatrikulation/Studienbescheinigung -> "immatrikulation", Zeugnisse/Transcript -> "zeugnis", Foto/Bild -> "foto", „Weitere Dokumente/Unterlagen/Anlagen“ -> "weitere". Gibt es nur ein Datei-Feld für alle Unterlagen: "lebenslauf". Nicht vorhandenes Dokument weglassen.
 - "check": IDs von Radio-Buttons oder Checkboxen, die eine Sachfrage beantworten (z.B. Anrede, Studierender ja), nur wenn die Antwort sicher aus seinen Daten folgt.
 - "consent": IDs von Einwilligungs-Checkboxen (Datenschutz, Speicherung, Talentpool nur wenn Pflicht). NICHT in "check" aufnehmen.
 - "offen": KURZE deutsche Bezeichnung (höchstens 4 Wörter, z.B. "Gehaltswunsch", "Starttermin", "Wochenstunden", "Arbeitstage", "Vollzeitstudium ja/nein") jeder Angabe, die du NICHT sicher beantworten kannst (z.B. Gehaltsvorstellung, frühester Start, Wochenstunden, Staatsangehörigkeit/Arbeitserlaubnis, Notendurchschnitt, wie er auf die Stelle aufmerksam wurde). Raten ist verboten. Freiwillige unklare Felder einfach leer lassen.
@@ -267,7 +268,7 @@ async function applyPlan(s: Session, letter: string): Promise<string[]> {
     if (ok) done.push(s.fields.find((f) => f.id === id)?.label.split(' | ')[0] || id);
   }
   for (const { id, doc } of s.plan.files) {
-    const fr = frameOf(s, id); const path = s.files[doc]; if (!fr || !path) continue;
+    const fr = frameOf(s, id); const path = s.files[doc]; if (!fr || !path?.length) continue;
     if (await fr.locator(`[data-jr="${id}"]`).setInputFiles(path, { timeout: 8000 }).then(() => true).catch(() => false)) done.push(`📎 ${doc}`);
   }
   // Fehlt ein Dokument, Upload-Kacheln über den Dateidialog versuchen
@@ -299,8 +300,9 @@ async function uploadViaChooser(s: Session, already: Set<string>): Promise<strin
         return t;
       }).catch(() => '');
       const doc = /lebenslauf|\bcv\b|resume/i.test(context) && !already.has('lebenslauf') ? 'lebenslauf'
-        : !already.has('anschreiben') && s.files.anschreiben ? 'anschreiben' : null;
-      if (!doc || !s.files[doc]) continue;
+        : !already.has('anschreiben') && s.files.anschreiben?.length ? 'anschreiben'
+        : /weitere|zeugnis|dokument|unterlagen/i.test(context) && !already.has('weitere') && s.files.weitere?.length ? 'weitere' : null;
+      if (!doc || !s.files[doc]?.length) continue;
       const chooser = s.page.waitForEvent('filechooser', { timeout: 5000 }).catch(() => null);
       await tile.click({ timeout: 4000, force: true }).catch(() => {});
       const fc = await chooser;
@@ -345,7 +347,7 @@ async function fillAndReport(store: Store, s: Session): Promise<FormResult> {
     close(s.ref);
     return { ok: false, offen: [], captcha: false, note: 'kein Formular gefunden' };
   }
-  s.plan = await planFill(s.job, s.fields, letter, [standing, s.extra].filter(Boolean).join('\n'));
+  s.plan = await planFill(s.job, s.fields, letter, [standing, s.extra].filter(Boolean).join('\n'), Object.keys(s.files).filter((k) => s.files[k].length));
   const done = await applyPlan(s, letter);
   const docs = done.filter((d) => d.startsWith('📎')).map((d) => d.slice(3));
   const captcha = (await s.page.locator('iframe[src*="recaptcha"], iframe[src*="hcaptcha"], iframe[src*="turnstile"]').count()) > 0;
@@ -469,10 +471,8 @@ export async function startForm(store: Store, chatId: string, job: StoredJob, re
   }
   const app = await store.getApplication(job.id);
   const dir = mkdtempSync(join(tmpdir(), 'bewerbung-'));
-  const files: Record<string, string> = {};
-  const cv = docPath('lebenslauf'); if (cv) files.lebenslauf = cv;
-  const imm = docPath('immatrikulation'); if (imm) files.immatrikulation = imm;
-  if (app?.letter) { files.anschreiben = join(dir, `Anschreiben_Martin_Spalevic.pdf`); writeFileSync(files.anschreiben, await letterPdf(app.letter, job)); }
+  const files = await materialize(store);
+  if (app?.letter) { const p = join(dir, `Anschreiben_Martin_Spalevic.pdf`); writeFileSync(p, await letterPdf(app.letter, job)); files.anschreiben = [p]; }
 
   const browser = await getBrowser();
   const context = await browser.newContext({ locale: 'de-DE', viewport: { width: 1280, height: 900 }, userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0 Safari/537.36' });
@@ -526,10 +526,9 @@ export function cancelForm(ref: string) { close(ref); }
 /** Nur für Tests: Formular öffnen, ausfüllen, Screenshot als Datei. Schickt NIE ab und sendet nichts an Telegram. */
 export async function dryRunForm(job: StoredJob, letter: string, outPng: string): Promise<{ fields: number; done: string[]; plan: Plan }> {
   const dir = mkdtempSync(join(tmpdir(), 'bewerbung-'));
-  const files: Record<string, string> = {};
-  const cv = docPath('lebenslauf'); if (cv) files.lebenslauf = cv;
-  files.anschreiben = join(dir, 'Anschreiben_Martin_Spalevic.pdf');
-  writeFileSync(files.anschreiben, await letterPdf(letter, job));
+  const files: Record<string, string[]> = { lebenslauf: [new URL('../data/docs/lebenslauf.pdf', import.meta.url).pathname] };
+  files.anschreiben = [join(dir, 'Anschreiben_Martin_Spalevic.pdf')];
+  writeFileSync(files.anschreiben[0], await letterPdf(letter, job));
   const browser = await getBrowser();
   const context = await browser.newContext({ locale: 'de-DE', viewport: { width: 1280, height: 900 } });
   const page = await context.newPage();
@@ -538,7 +537,7 @@ export async function dryRunForm(job: StoredJob, letter: string, outPng: string)
     await openForm(page, job.url);
     s.fields = await collectFields(page);
     console.log(`Formular: ${page.url()}, Eingaben: ${await page.locator('input, textarea, select').count()}, erkannt: ${s.fields.length}`);
-    s.plan = await planFill(job, s.fields, letter, '');
+    s.plan = await planFill(job, s.fields, letter, '', Object.keys(s.files).filter((k) => s.files[k].length));
     const done = await applyPlan(s, letter);
     writeFileSync(outPng, await page.screenshot({ fullPage: true }));
     return { fields: s.fields.length, done, plan: s.plan };

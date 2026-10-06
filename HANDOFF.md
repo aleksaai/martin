@@ -60,8 +60,14 @@
   dieselben automatischen Meldungen, Stellenkarten mit 👁 und ohne Knöpfe; Knopf-Klicks werden abgewiesen; der Chat-Agent weiß, dass es
   Aleksa ist, hat nur `bewerbungen_uebersicht` + `sucheinstellungen` + Websuche und ändert nichts. Martins Start pausiert Beobachter nicht.
   Martins eigene Chats werden bewusst NICHT gespiegelt. `/pause` / `/weiter` wie gehabt.
+- **Dateien im Chat (06.10. abends, `src/uploads.ts`):** PDF/Foto/Word → `getFile`-Download (max. 20 MB) → Haiku liest PDF/Bild und ordnet ein
+  (lebenslauf, immatrikulation, zeugnis, foto, anschreiben, sonstiges; Word nur nach Dateiname, sonst Rückfrage-Knöpfe `dk:<n>:<art>`).
+  Ablage in Postgres-Tabelle `documents` (bytea), nicht im Container. Lebenslauf/Immatrikulation/Foto je einmal (ersetzen), Zeugnisse mehrere.
+  Anschreiben → Text wird Stilvorlage. `materialize()` stellt alles als Dateien bereit (Lebenslauf fällt auf `data/docs/lebenslauf.pdf` zurück),
+  Formular-Dokumente: lebenslauf, anschreiben, immatrikulation, zeugnis, foto, weitere (= Immatrikulation + Zeugnisse). „sonstiges“ wird NIE
+  automatisch hochgeladen, Bilder ohne Bewerbungsbezug werden gar nicht abgelegt. Beobachter können keine Dateien ablegen.
 - Offen: erster Railway-Build mit Playwright prüfen, Martin anmelden, Martin nennt einmal Starttermin/Stunden (Antwort auf einen Formular-Screenshot
-  landet in `kv.answers` und fließt danach auch in die Anschreiben), Immatrikulationsbescheinigung als `data/docs/immatrikulation.pdf`.
+  landet in `kv.answers` und fließt danach auch in die Anschreiben), Immatrikulationsbescheinigung schickt Martin einfach in den Chat.
 
 ### Was wurde in dieser Session gemacht (2026-10-05)
 - Projekt von null gebaut, Repo `aleksaai/martin`, Railway-Projekt „martin“ mit Postgres, Bot bei BotFather angelegt, Variablen gesetzt, BA-Suche live.
@@ -134,7 +140,7 @@
 6. `ausbau` nach `main` mergen und pushen → Railway baut neu (erster Build mit Playwright-Image dauert länger).
    Danach in Railway-Logs prüfen: `jobradar läuft …` und `Suchlauf fertig …`.
 7. Martin anmelden lassen (Link oben). Er soll seine alten Anschreiben nach `data/letters/` liefern
-   (über iCloud Drive > Downloads) und seine Immatrikulationsbescheinigung als `data/docs/immatrikulation.pdf`.
+   (über iCloud Drive > Downloads) und seine Immatrikulationsbescheinigung schickt Martin einfach in den Chat.
 
 ## Offene Fragen an Aleksa
 - Umkreis 40 km lässt Düsseldorf und Aachen (je ~47 km) knapp raus, dort sitzen viele Kanzleien. Auf 50 km erhöhen? (`MAX_KM`)

@@ -12,6 +12,7 @@ import { geocode } from './filter.ts';
 import { companyFromUrl, extraCompanies, loadPrefs, prefsText, savePrefs } from './prefs.ts';
 import { listCompany } from './sources/ats.ts';
 import { listHtml } from './sources/html.ts';
+import { documentList } from './uploads.ts';
 
 const client = new Anthropic({ apiKey: cfg.anthropicKey });
 const HISTORY = 24;
@@ -174,6 +175,7 @@ async function contextBlock(store: Store, chatId: string): Promise<string> {
   const app = job ? await store.getApplication(job.id) : null;
   return [
     `Gespeicherte Angaben von Martin:\n${facts || '(noch keine)'}`,
+    `Gespeicherte Unterlagen: ${await documentList(store)}. Martin kann Dateien (PDF, Foto, Word) einfach in den Chat schicken, das System erkennt und speichert sie selbst.`,
     job ? `Aktuelle Bewerbung: ${job.title} bei ${job.company} (${job.location}). Status: ${app?.status ?? 'nur angesehen'}.\nAnzeige (Auszug):\n${(job.description ?? '').slice(0, 2500)}` : 'Keine aktuelle Bewerbung.',
     form ? `Offenes Formular: ${form.title} bei ${form.company}. Noch offen: ${form.offen.join(', ') || 'nichts'}. Bisher von Martin nachgereicht: ${form.filledWith || '-'}` : 'Kein Formular offen.',
   ].join('\n\n');

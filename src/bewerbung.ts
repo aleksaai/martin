@@ -1,6 +1,7 @@
 // Bewerbung per Knopf: Anschreiben (Text + PDF), Lebenslauf, Weg zur Bewerbung, Nachverfolgung.
 import { readFileSync } from 'node:fs';
-import { docPath, fileSafe, letterPdf } from './documents.ts';
+import { fileSafe, letterPdf } from './documents.ts';
+import { materialize } from './uploads.ts';
 import { findOriginalPosting, interviewPrep, reviseLetter, writeLetter, writeMail } from './llm.ts';
 import type { Store } from './store.ts';
 import { button, esc, tg, tgFile } from './tg.ts';
@@ -56,8 +57,8 @@ export async function prepareApplication(store: Store, chatId: string, job: Stor
 
     await status.step('Baue das PDF …');
     await sendLetterPdf(store, chatId, job, letter, LETTER_CAPTION);
-    const cv = docPath('lebenslauf');
-    if (cv) await tgFile('sendDocument', chatId, readFileSync(cv), 'Lebenslauf_Martin_Spalevic.pdf');
+    const cv = (await materialize(store)).lebenslauf?.[0];
+    if (cv) await tgFile('sendDocument', chatId, readFileSync(cv), cv.split('/').pop() ?? 'Lebenslauf_Martin_Spalevic.pdf');
 
     // Bewerbungsweg: Mail aus der Anzeige, sonst Formular beim Arbeitgeber, sonst Link
     let applyUrl = job.url;

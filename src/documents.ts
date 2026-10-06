@@ -4,10 +4,6 @@ import { withBrowser } from './browser.ts';
 
 export const CONTACT = JSON.parse(readFileSync(new URL('../data/contact.json', import.meta.url), 'utf8'));
 
-export function docPath(name: 'lebenslauf' | 'immatrikulation'): string | null {
-  const p = new URL(`../data/docs/${name}.pdf`, import.meta.url).pathname;
-  return existsSync(p) ? p : null;
-}
 
 const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 

@@ -22,6 +22,8 @@ export interface Application {
 
 export type ApplicationRow = Application & { title: string; company: string; source: string };
 
+export interface StoredDoc { key: string; kind: string; filename: string; mime: string; updated_at: string }
+
 export interface Store {
   init(): Promise<void>;
   known(id: string, key: string): Promise<boolean>;
@@ -56,6 +58,11 @@ export interface Store {
   undecided(hours: number, limit: number): Promise<StoredJob[]>;
   addLetterExample(text: string): Promise<void>;
   letterExamples(n: number): Promise<string[]>;
+  // Dokumente, die Martin im Chat schickt (Lebenslauf, Immatrikulation, Zeugnisse, Foto ...)
+  saveDocument(doc: Omit<StoredDoc, 'updated_at'>, data: Buffer): Promise<void>;
+  listDocuments(): Promise<StoredDoc[]>;
+  getDocumentData(key: string): Promise<Buffer | null>;
+  deleteDocument(key: string): Promise<void>;
   kvGet(key: string): Promise<string | null>;
   kvSet(key: string, value: string): Promise<void>;
   stats(): Promise<Record<string, number>>;
@@ -84,6 +91,7 @@ class PgStore implements Store {
       );
       alter table applications add column if not exists channel text;
       alter table applications add column if not exists notes text;
+      create table if not exists documents (key text primary key, kind text not null, filename text not null, mime text not null, data bytea not null, updated_at timestamptz not null default now());
       create table if not exists letter_examples (id serial primary key, text text not null, created_at timestamptz not null default now());
     `);
   }
@@ -159,6 +167,22 @@ class PgStore implements Store {
     const r = await this.pool.query(`select a.*, j.title, j.company, j.source from applications a join jobs j on j.id = a.job_id order by coalesce(a.applied_at, j.first_seen) desc`);
     return r.rows as ApplicationRow[];
   }
+  async saveDocument(d: Omit<StoredDoc, 'updated_at'>, data: Buffer) {
+    await this.pool.query(
+      `insert into documents (key, kind, filename, mime, data) values ($1,$2,$3,$4,$5)
+       on conflict (key) do update set kind = $2, filename = $3, mime = $4, data = $5, updated_at = now()`,
+      [d.key, d.kind, d.filename, d.mime, data]);
+  }
+  async listDocuments() {
+    return (await this.pool.query('select key, kind, filename, mime, updated_at from documents order by updated_at')).rows as StoredDoc[];
+  }
+  async getDocumentData(key: string) {
+    const r = await this.pool.query('select data from documents where key = $1', [key]);
+    return (r.rows[0]?.data as Buffer) ?? null;
+  }
+  async deleteDocument(key: string) {
+    await this.pool.query('delete from documents where key = $1', [key]);
+  }
   async resetTestData(keepChatId: string) {
     await this.pool.query(`update jobs set feedback = null`);
     await this.pool.query(`delete from applications`);
@@ -210,7 +234,7 @@ class PgStore implements Store {
   }
 }
 
-interface FileData { jobs: Record<string, StoredJob & { dedupe_key: string }>; subscribers: Subscriber[]; kv: Record<string, string>; applications?: Record<string, Application>; letters?: string[] }
+interface FileData { jobs: Record<string, StoredJob & { dedupe_key: string }>; subscribers: Subscriber[]; kv: Record<string, string>; applications?: Record<string, Application>; letters?: string[]; documents?: Record<string, StoredDoc & { data: string }> }
 
 class FileStore implements Store {
   private data: FileData = { jobs: {}, subscribers: [], kv: {} };
@@ -280,6 +304,21 @@ class FileStore implements Store {
       const j = this.data.jobs[a.job_id];
       return { ...a, title: j?.title ?? '?', company: j?.company ?? '?', source: j?.source ?? '?' };
     }).sort((a, b) => (b.applied_at ?? '').localeCompare(a.applied_at ?? ''));
+  }
+  async saveDocument(d: Omit<StoredDoc, 'updated_at'>, data: Buffer) {
+    (this.data.documents ??= {})[d.key] = { ...d, updated_at: new Date().toISOString(), data: data.toString('base64') };
+    await this.flush();
+  }
+  async listDocuments() {
+    return Object.values(this.data.documents ?? {}).map(({ data: _d, ...rest }) => rest);
+  }
+  async getDocumentData(key: string) {
+    const d = this.data.documents?.[key];
+    return d ? Buffer.from(d.data, 'base64') : null;
+  }
+  async deleteDocument(key: string) {
+    if (this.data.documents) delete this.data.documents[key];
+    await this.flush();
   }
   async resetTestData(keepChatId: string) {
     for (const j of Object.values(this.data.jobs)) j.feedback = null;

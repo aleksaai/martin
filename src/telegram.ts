@@ -3,6 +3,7 @@ import { chat } from './agent.ts';
 import { accountCreated, cancelForm, startForm, submitForm } from './apply.ts';
 import { handleLetterReply, handleOutcome, markApplied, prepareApplication } from './bewerbung.ts';
 import { overview } from './tracking.ts';
+import { assignUpload, handleUpload } from './uploads.ts';
 import { cfg } from './config.ts';
 import type { Store } from './store.ts';
 import { esc, tg } from './tg.ts';
@@ -82,6 +83,7 @@ const HELP = [
   'Melde mich zum Dienst, Kamerad. Ich suche dreimal täglich Werkstudentenstellen für dich, remote oder rund um Köln, und melde, was taugt.',
   '📨 Bewerben: Ich schreibe das Anschreiben und fülle auf Wunsch das Formular aus. Abgeschickt wird nur auf dein Kommando.',
   'Sonst einfach schreiben: Angaben fürs Formular, Gehaltsfragen, Änderungen am Anschreiben, oder „hab mich bei X beworben“, dann trage ich es ein.',
+  'Unterlagen (Immatrikulation, Zeugnisse, Foto, neuer Lebenslauf) einfach als Datei schicken, ich erkenne und sichere sie.',
   '',
   '/suche  jetzt suchen  ·  /bewerbungen  Lagebericht  ·  /pause  ·  /weiter',
 ].join('\n');
@@ -123,6 +125,12 @@ export async function handle(u: any, store: Store, triggerRun: () => Promise<str
     if (!subs.some((s) => s.chat_id === chatId)) return;
     if (await isObserver(store, chatId)) {
       await tg('answerCallbackQuery', { callback_query_id: q.id, text: 'Beobachter-Modus: entscheiden kann hier nur Martin.' }).catch(() => {});
+      return;
+    }
+    if (String(q.data).startsWith('dk:')) {
+      const [, n, kind] = String(q.data).split(':');
+      await tg('answerCallbackQuery', { callback_query_id: q.id }).catch(() => {});
+      await assignUpload(store, chatId, n, kind);
       return;
     }
     const [action, ref] = String(q.data).split(':');
@@ -183,6 +191,26 @@ export async function handle(u: any, store: Store, triggerRun: () => Promise<str
   }
 
   const m = u.message;
+  if (m && (m.document || m.photo)) {
+    const fromId = String(m.chat.id);
+    if (!subs.some((x) => x.chat_id === fromId)) return;
+    if (await isObserver(store, fromId)) {
+      await tg('sendMessage', { chat_id: fromId, text: 'Beobachter-Modus: Unterlagen schickt Martin in seinem Chat.' });
+      return;
+    }
+    const reactOn = (on: boolean) => tg('setMessageReaction', { chat_id: fromId, message_id: m.message_id, reaction: on ? [{ type: 'emoji', emoji: '👀' }] : [] }).catch(() => {});
+    await reactOn(true);
+    try {
+      await handleUpload(store, fromId, m);
+      // Bildunterschrift mit Anweisung („das ist mein neues Zeugnis, nimm es für REWE“) geht danach an den Chat
+      if (m.caption) await chat(store, fromId, `(Martin hat gerade eine Datei geschickt, sie ist gespeichert.) ${m.caption}`, m.message_id);
+    } catch (e) {
+      await tg('sendMessage', { chat_id: fromId, text: `Die Datei konnte ich nicht verarbeiten (${(e as Error).message.slice(0, 80)}). Nochmal schicken, am besten als PDF.` });
+    } finally {
+      await reactOn(false);
+    }
+    return;
+  }
   if (!m?.text) return;
   const chatId = String(m.chat.id);
   const text: string = m.text.trim();

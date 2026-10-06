@@ -1,5 +1,13 @@
 # HANDOFF: Martins Jobradar (Stand 2026-10-06, Mac mini)
 
+### ▶️ Stand zum Session-Ende (2026-10-06 abends): bereit für Martins Start
+1. Aleksa schreibt in seinem Adolf-Chat `/beobachter` (VOR Martins Start, sonst wird er beim Wechsel pausiert).
+2. Martin: `/start 8fc929ae` (bzw. `t.me/<bot>?start=8fc929ae`) → Testdaten werden gelöscht, er bekommt alle Treffer der letzten 14 Tage.
+3. Martin nennt Adolf einmal Starttermin, Wochenstunden, Arbeitstage, Gehaltswunsch und sagt „merk dir das“.
+Startpaket im Repo: Lebenslauf, Immatrikulationsbescheinigung WS 2026/27 (Vollzeitstudierender, 3. FS, 8. HS, Matrikelnr. in `data/contact.json`),
+Staatsangehörigkeit deutsch, Logo, 4 Stil-Anschreiben. Railway-Variablen: `TELEGRAM_BOT_TOKEN`, `INVITE_CODE`, `ANTHROPIC_API_KEY`, `DATABASE_URL`, `VAULT_KEY`.
+Noch nie echt erprobt: ein echtes Absenden, Login + Formular hinter einem Portal-Konto (EY/SuccessFactors), Workday mehrseitig.
+
 ### Was wurde in dieser Session gemacht (2026-10-06)
 - **Ausbau Stufe 1–3 getestet und nach `main` gemergt = live** (Railway baut ab jetzt per Dockerfile mit Playwright-Image).
 - Martins vier echte Anschreiben (fino, Vestlane, Lawfit, Louco) liegen als Stilvorlagen in `data/letters/`. Neu im Profil: Bachelorarbeit
@@ -66,7 +74,7 @@
   Anschreiben → Text wird Stilvorlage. `materialize()` stellt alles als Dateien bereit (Lebenslauf fällt auf `data/docs/lebenslauf.pdf` zurück),
   Formular-Dokumente: lebenslauf, anschreiben, immatrikulation, zeugnis, foto, weitere (= Immatrikulation + Zeugnisse). „sonstiges“ wird NIE
   automatisch hochgeladen, Bilder ohne Bewerbungsbezug werden gar nicht abgelegt. Beobachter können keine Dateien ablegen.
-- Offen: erster Railway-Build mit Playwright prüfen, Martin anmelden, Martin nennt einmal Starttermin/Stunden (Antwort auf einen Formular-Screenshot
+- Offen (Stand Mittag, inzwischen erledigt: Railway-Build mit Playwright lief, Immatrikulation im Startpaket): Martin anmelden, Martin nennt einmal Starttermin/Stunden (Antwort auf einen Formular-Screenshot
   landet in `kv.answers` und fließt danach auch in die Anschreiben), Immatrikulationsbescheinigung schickt Martin einfach in den Chat.
 
 ### Was wurde in dieser Session gemacht (2026-10-05)

@@ -1,11 +1,12 @@
 // Haiku bewertet die Passung, Sonnet schreibt auf Wunsch einen Anschreiben-Entwurf.
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import Anthropic from '@anthropic-ai/sdk';
 import { cfg } from './config.ts';
 import type { RawJob } from './types.ts';
 
 const client = new Anthropic({ apiKey: cfg.anthropicKey });
 export const PROFILE = readFileSync(new URL('../data/profile.md', import.meta.url), 'utf8');
+const PHONE: string = JSON.parse(readFileSync(new URL('../data/contact.json', import.meta.url), 'utf8')).phone;
 
 export interface Verdict { score: number; reason: string; machbar: boolean; mode: string }
 
@@ -55,28 +56,121 @@ export async function scoreJob(job: RawJob, place: string, calibration: string):
   };
 }
 
-export async function writeLetter(job: { title: string; company: string; description: string | null; url: string }): Promise<string> {
-  const res = await client.messages.create({
-    model: cfg.letterModel,
-    max_tokens: 1500,
-    system: `Du schreibst einen Anschreiben-Entwurf für Martin Spalevic. Grundlage ist ausschließlich sein Profil. Erfinde nichts dazu:
-keine Noten, keine Zahlen, keine Tätigkeiten, die nicht im Profil stehen.
+/** Martins eigene Anschreiben als Stilvorlage: Dateien in data/letters/ plus seine korrigierten Endfassungen. */
+function styleBlock(extra: string[]): string {
+  const dir = new URL('../data/letters/', import.meta.url);
+  let files: string[] = [];
+  try {
+    files = readdirSync(dir).filter((f) => /\.(txt|md)$/i.test(f)).map((f) => readFileSync(new URL(f, dir), 'utf8').trim());
+  } catch { /* noch keine */ }
+  const all = [...extra, ...files].filter(Boolean).slice(0, 6);
+  if (!all.length) return '';
+  return `\n\nSo schreibt Martin selbst. Übernimm seinen Ton, Satzbau, Einstieg und Schluss, nicht die Inhalte:\n${all
+    .map((l, i) => `<beispiel ${i + 1}>\n${l.slice(0, 3000)}\n</beispiel ${i + 1}>`).join('\n')}`;
+}
+
+export interface JobText { title: string; company: string; description: string | null; url: string }
+
+// Sonnet 5.5 denkt vor der Antwort nach, das zählt aufs Budget: großzügig bemessen, sonst bricht der Text ab
+async function ask(model: string, system: string, user: string, maxTokens = 8000): Promise<string> {
+  const res = await client.messages.create({ model, max_tokens: maxTokens, system, messages: [{ role: 'user', content: user }] });
+  if (res.stop_reason !== 'end_turn') console.log(`Modell ${model} stoppte mit ${res.stop_reason} (${res.usage.output_tokens} Tokens)`, JSON.stringify(res.content.map((b) => b.type)));
+  return res.content.map((b) => (b.type === 'text' ? b.text : '')).join('').trim().replace(/\s*[—–]\s*/g, ', ');
+}
+
+const jobBlock = (job: JobText) =>
+  `Stelle: ${job.title}\nArbeitgeber: ${job.company}\nLink: ${job.url}\n\nAnzeige:\n${(job.description ?? '(keine Beschreibung gespeichert)').slice(0, 8000)}`;
+
+async function draftLetter(job: JobText, examples: string[], answers: string): Promise<string> {
+  return ask(cfg.letterModel, `Du schreibst einen Anschreiben-Entwurf für Martin Spalevic, so wie er selbst schreibt.${answers ? `\n\nMartins eigene Angaben zu Verfügbarkeit, Stunden usw. (gelten als belegt):\n${answers}` : ''}
+Grundlage für Fakten ist ausschließlich sein Profil. Erfinde nichts: keine Noten, keine Zahlen, keine Tätigkeiten, keine Projekte,
+die nicht im Profil stehen.
 
 Profil:
 ${PROFILE}
 
-Regeln:
-- Deutsch, Sie-Form gegenüber dem Arbeitgeber, ehrlich und konkret, kein Bewerbungsfloskel-Deutsch ("hiermit bewerbe ich mich", "mit großem Interesse").
-- Höchstens 220 Wörter Fließtext. Einstieg mit dem stärksten Bezug zwischen seiner Erfahrung und der Stelle.
-- Zwei bis drei konkrete Belege aus seinem Profil, die zur Anzeige passen.
-- Nenne die zeitliche Flexibilität durch das Fernstudium, wenn es zur Stelle passt.
-- Keine Gedankenstriche (—, –). Normale Satzzeichen.
-- Platzhalter in eckigen Klammern, wo Wissen fehlt (z.B. [Ansprechperson], [frühester Starttermin], [Stunden pro Woche]).
-- Nur das Anschreiben ausgeben: Anrede, Text, Grußformel, Name. Kein Briefkopf, kein Kommentar.`,
-    messages: [{
-      role: 'user',
-      content: `Stelle: ${job.title}\nArbeitgeber: ${job.company}\nLink: ${job.url}\n\nAnzeige:\n${(job.description ?? '(keine Beschreibung gespeichert)').slice(0, 8000)}`,
-    }],
-  });
-  return res.content.map((b) => (b.type === 'text' ? b.text : '')).join('').trim();
+Ausgabeformat: erste Zeile "Betreff: Bewerbung als <Stellenbezeichnung>" (grammatisch korrekt in der Einzahl für einen Mann, ohne (m/w/d), z.B. "Wissenschaftlicher Mitarbeiter im IT- und Datenrecht"), dann eine Leerzeile, dann das Anschreiben.
+
+Aufbau wie in seinen eigenen Anschreiben:
+1. Anrede (Ansprechperson aus der Anzeige, sonst "Sehr geehrte Damen und Herren,").
+2. Einstieg: was ihn an genau dieser Aufgabe oder Schnittstelle reizt, mit konkretem Bezug auf Inhalte der Anzeige.
+3. Studium: Bachelor Wirtschaftsrecht an der FH Aachen, jetzt Jura an der FernUniversität in Hagen mit dem Ziel des Staatsexamens.
+4. Passender Schwerpunkt oder Erfahrung. Anders als in seinen alten Anschreiben hier zusätzlich ein bis zwei KONKRETE Belege aus
+   seiner Werkstudentenpraxis, die zur Stelle passen (z.B. 120 Betriebsvereinbarungen geprüft, 31 Widersprüche gefunden,
+   AGB und Auftragsverarbeitungsverträge entworfen, Musterklauselbibliothek). Bei Compliance/AML/Regulatorik die Bachelorarbeit.
+5. "An <Firma> reizt mich besonders, ..." mit einem echten Detail aus der Anzeige.
+6. Arbeitsweise in einem Absatz (strukturiert, sorgfältig, eigenständig, schnelle Einarbeitung), bei Fernstudium-Bezug zeitliche Flexibilität.
+7. Schluss im Stil "Ich freue mich darauf, Sie in einem persönlichen Gespräch von meiner Motivation zu überzeugen." Dann
+   "Mit freundlichen Grüßen" und "Martin Spalevic".
+
+Stil: förmlich, Sie-Form, vollständige und eher längere Sätze wie in seinen Beispielen, 220 bis 290 Wörter (zählt hart, sonst passt es nicht auf eine Seite).
+Behaupte KEINE Software-, Tool- oder Sprachkenntnisse und keine Erfahrungen, nur weil die Anzeige sie verlangt. Kenntnisse nur, wenn sie im Profil stehen (DATEV, KI-gestützte Vertragsanalyse, Englisch C2, Serbisch). Fehlt etwas Gefordertes, lass es weg.
+Deutsch (Englisch nur, wenn die Anzeige englisch ist). Keine Gedankenstriche, keine Aufzählungszeichen.
+Platzhalter in eckigen Klammern nur, wo Wissen wirklich fehlt (z.B. [frühester Starttermin]).
+Danach nur das Anschreiben, ohne Briefkopf oder Kommentar.${styleBlock(examples)}`, jobBlock(job), 12000);
+}
+
+/** Faktenprüfung: Haiku sucht Aussagen, die das Profil nicht hergibt. Gefundene werden in einem zweiten Durchgang entfernt. */
+async function unsupportedClaims(letter: string, answers: string): Promise<string[]> {
+  const raw = await ask(cfg.scoreModel, `Du prüfst ein Bewerbungsanschreiben gegen das Profil des Bewerbers. Liste jede Aussage über den Bewerber
+(Kenntnisse, Tools, Software, Erfahrungen, Zahlen, Tätigkeiten, Abschlüsse, Sprachen), die NICHT durch das Profil belegt ist.
+Meinungen, Motivation, Interesse an der Stelle und Aussagen über den Arbeitgeber sind KEINE Behauptungen und zählen nicht.
+Antworte nur mit JSON: {"unbelegt": ["wörtliches Zitat aus dem Anschreiben", ...]}, leer wenn alles belegt ist.
+
+Profil:
+${PROFILE}
+
+Zusätzliche Angaben von Martin (gelten als belegt):
+${answers || '(keine)'}`, letter, 4000);
+  try {
+    return JSON.parse(raw.slice(raw.indexOf('{'), raw.lastIndexOf('}') + 1)).unbelegt ?? [];
+  } catch {
+    return [];
+  }
+}
+
+// Betreff-Zeile zählt nicht mit
+const words = (t: string) => t.replace(/^Betreff:.*\n/i, '').trim().split(/\s+/).length;
+
+export async function writeLetter(job: JobText, examples: string[] = [], answers = ''): Promise<string> {
+  let letter = await draftLetter(job, examples, answers);
+  const issues = await unsupportedClaims(letter, answers);
+  if (issues.length) {
+    console.log('Anschreiben: unbelegte Aussagen entfernt:', issues);
+    letter = await ask(cfg.letterModel, `Überarbeite das Anschreiben minimal: Entferne oder entschärfe genau diese Aussagen, weil sie nicht belegt sind,
+und lass alles andere wörtlich stehen. Keine neuen Fakten hinzufügen. Keine Gedankenstriche. Nur das überarbeitete Anschreiben ausgeben.
+
+Unbelegt:
+${issues.map((i) => `- ${i}`).join('\n')}`, letter, 12000);
+  }
+  // Eine Seite ist Pflicht: zu lange Fassungen einmal straffen
+  if (words(letter) > 300) {
+    letter = await ask(cfg.letterModel, `Kürze dieses Anschreiben auf höchstens 280 Wörter. Behalte Aufbau, Ton, Anrede, Grußformel und alle
+konkreten Belege, streiche Wiederholungen und allgemeine Sätze. Keine neuen Fakten, keine Gedankenstriche. Die Betreff-Zeile oben unverändert lassen. Nur das Anschreiben ausgeben.`, letter, 12000);
+  }
+  return letter;
+}
+
+/** Kurze Begleitmail, wenn die Anzeige eine Bewerbungsadresse nennt. */
+export async function writeMail(job: JobText): Promise<string> {
+  return ask(cfg.letterModel, `Schreibe eine kurze Bewerbungs-E-Mail von Martin Spalevic (Profil unten). Anschreiben und Lebenslauf hängen als PDF an.
+Format: erste Zeile "Betreff: ...", Leerzeile, dann 3 bis 5 Sätze, Grußformel, Name, Telefon ${PHONE}. Sie-Form, keine Floskeln, keine Gedankenstriche.
+Ansprechperson aus der Anzeige übernehmen, wenn genannt.
+
+Profil:
+${PROFILE}`, jobBlock(job), 6000);
+}
+
+/** Vorbereitung, sobald eine Einladung zum Gespräch da ist. */
+export async function interviewPrep(job: JobText): Promise<string> {
+  return ask(cfg.letterModel, `Martin Spalevic (Profil unten) hat eine Einladung zum Vorstellungsgespräch für die Stelle unten.
+Schreibe ihm eine kompakte Vorbereitung auf Deutsch, du-Form, für Telegram (kein Markdown, keine Tabellen, Aufzählungen mit •):
+1. Worum es in der Stelle wirklich geht (2 Sätze).
+2. Die 5 wahrscheinlichsten Fragen, je mit einem Antwortansatz aus seiner echten Erfahrung.
+3. Eine kurze juristische Fachfrage, die zur Stelle passt, mit Lösungsskizze (Normen nennen).
+4. Drei kluge Rückfragen, die er stellen kann.
+Nichts erfinden, was nicht im Profil oder der Anzeige steht. Keine Gedankenstriche.
+
+Profil:
+${PROFILE}`, jobBlock(job), 12000);
 }

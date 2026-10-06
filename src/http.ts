@@ -1,13 +1,20 @@
 import { UA } from './config.ts';
 
 export async function fetchText(url: string, init: RequestInit = {}, timeoutMs = 25_000): Promise<string> {
-  const res = await fetch(url, {
-    ...init,
-    headers: { 'User-Agent': UA, ...(init.headers ?? {}) },
-    signal: AbortSignal.timeout(timeoutMs),
-  });
-  if (!res.ok) throw new Error(`${res.status} ${res.statusText} bei ${url}`);
-  return res.text();
+  for (let attempt = 0; ; attempt++) {
+    const res = await fetch(url, {
+      ...init,
+      headers: { 'User-Agent': UA, 'Accept-Language': 'de-DE,de;q=0.9', ...(init.headers ?? {}) },
+      signal: AbortSignal.timeout(timeoutMs),
+    });
+    // Personio und Workable drosseln schnell: kurz warten, dann nochmal
+    if ((res.status === 429 || res.status === 503) && attempt < 3) {
+      await sleep(Number(res.headers.get('retry-after')) * 1000 || 4000 * (attempt + 1));
+      continue;
+    }
+    if (!res.ok) throw new Error(`${res.status} ${res.statusText} bei ${url}`);
+    return res.text();
+  }
 }
 
 export async function fetchJson<T = any>(url: string, init: RequestInit = {}, timeoutMs = 25_000): Promise<T> {

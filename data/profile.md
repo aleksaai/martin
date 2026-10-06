@@ -10,8 +10,10 @@ Karriere nützen (z.B. Steuer, Regulatorik, Einkauf mit Vertragsbezug, HR mit Ar
 Kein reiner Aushilfsjob ohne Karrierebezug (Gastronomie, Verkauf, Lager, Callcenter).
 
 ## Ausbildung
-- seit 09/2025: Jurastudium mit Ziel Erste Juristische Prüfung, FernUniversität in Hagen (Fernstudium, daher zeitlich flexibel)
-- 09/2022 bis 08/2025: LL.B. Wirtschaftsrecht, Fachhochschule Aachen
+- seit 09/2025: Jurastudium mit Ziel Erste Juristische Prüfung (Staatsexamen), FernUniversität in Hagen (Fernstudium, daher zeitlich flexibel)
+- 09/2022 bis 08/2025: LL.B. Wirtschaftsrecht, Fachhochschule Aachen. Schwerpunkt Compliance und regulatorische Fragestellungen.
+  Bachelorarbeit: Pflichten und Haftungsrisiken des Geldwäschebeauftragten in Kreditinstituten sowie die künftige europäische
+  Geldwäschegesetzgebung (Risikoanalysen, interne Sicherungsmaßnahmen, Verdachtsmeldungen, regulatorische Anforderungen).
 - 2014 bis 2022: Abitur, Ville-Gymnasium Erftstadt
 
 ## Erfahrung
@@ -27,9 +29,17 @@ Kein reiner Aushilfsjob ohne Karrierebezug (Gastronomie, Verkauf, Lager, Callcen
   AGB für das Software- und KI-Automatisierungsangebot entworfen, bestehende Klauselwerke nach §§ 305 ff. BGB geprüft.
   6 Auftragsverarbeitungsverträge nach Art. 28 DSGVO erstellt.
 
+Außerdem: Einblicke in kaufmännische Bereiche wie Vertrieb, Rechnungswesen und Controlling (laut seinen eigenen Anschreiben).
+
 ## Fachkenntnisse
 Vertragsgestaltung und -prüfung, AGB-Recht (§§ 305 ff. BGB), Verbraucherrecht und Widerruf, DSGVO und Auftragsverarbeitung,
-Betriebsvereinbarungen, Vertragsmanagement und Fristen, Gutachtenstil und Recherche, KI-gestützte Vertragsanalyse, DATEV.
+Betriebsvereinbarungen, Vertragsmanagement und Fristen, Gutachtenstil und Recherche, KI-gestützte Vertragsanalyse, DATEV,
+Geldwäscheprävention/AML und Compliance (Bachelorarbeit).
+
+## Interessen (aus seinen Anschreiben)
+Schnittstelle von Recht und Technologie: rechtliche Anforderungen in digitale, praxistaugliche Prozesse übersetzen (Legal Tech,
+Legal Operations, Compliance-Workflows wie KYC/AML). Will nicht nur abstrakte Rechtsfragen bearbeiten, sondern sehen, wie Recht
+im Unternehmen umgesetzt wird. Arbeitet gern eigenständig an offenen Fragestellungen und im Austausch mit anderen.
 
 ## Sprachen
 Deutsch (Muttersprache), Serbisch (Muttersprache), Englisch C2.

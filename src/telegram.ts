@@ -97,7 +97,7 @@ export function startBot(store: Store, triggerRun: () => Promise<string>) {
         const updates: any[] = await tg('getUpdates', { offset, timeout: 50, allowed_updates: ['message', 'callback_query'] });
         for (const u of updates) {
           offset = u.update_id + 1;
-          // Nicht abwarten: Anschreiben und Formulare dauern, andere Klicks sollen trotzdem sofort gehen
+          // Different chats can proceed concurrently; handle serializes each chat, including buttons.
           void handle(u, store, triggerRun).catch((e) => console.error('Update-Fehler:', e.message));
         }
       } catch (e) {
@@ -117,7 +117,18 @@ export function startBot(store: Store, triggerRun: () => Promise<string>) {
   ] }).catch(() => {});
 }
 
-export async function handle(u: any, store: Store, triggerRun: () => Promise<string>) {
+// Callback clicks and chat messages share one queue: opening a second form cannot close
+// a browser while the first operation is still filling it.
+const updateQueues = new Map<string, Promise<void>>();
+export function handle(u: any, store: Store, triggerRun: () => Promise<string>): Promise<void> {
+  const chatId = String(u.message?.chat?.id ?? u.callback_query?.message?.chat?.id ?? 'unknown');
+  if (u.callback_query) void tg('answerCallbackQuery', { callback_query_id: u.callback_query.id }).catch(() => {});
+  const task = (updateQueues.get(chatId) ?? Promise.resolve()).catch(() => {}).then(() => handleUpdate(u, store, triggerRun));
+  updateQueues.set(chatId, task);
+  void task.finally(() => { if (updateQueues.get(chatId) === task) updateQueues.delete(chatId); }).catch(() => {});
+  return task;
+}
+async function handleUpdate(u: any, store: Store, triggerRun: () => Promise<string>) {
   const subs = await store.subscribers();
   if (u.callback_query) {
     const q = u.callback_query;
@@ -133,13 +144,13 @@ export async function handle(u: any, store: Store, triggerRun: () => Promise<str
       await assignUpload(store, chatId, n, kind);
       return;
     }
-    const [action, ref] = String(q.data).split(':');
+    const [action, ref, review] = String(q.data).split(':');
     const answer = (text?: string) => tg('answerCallbackQuery', { callback_query_id: q.id, ...(text ? { text } : {}) }).catch(() => {});
     if (action === 'send' || action === 'stop') {
       await answer();
-      if (action === 'stop') { cancelForm(ref); await tg('sendMessage', { chat_id: chatId, text: 'Abgebrochen, nichts wurde abgeschickt.' }); return; }
+      if (action === 'stop') { cancelForm(ref, chatId); await tg('sendMessage', { chat_id: chatId, text: 'Abgebrochen, nichts wurde abgeschickt.' }); return; }
       const jobId = await store.kvGet(`ref:${ref}`);
-      const result = await submitForm(store, chatId, ref);
+      const result = await submitForm(store, chatId, ref, review);
       const job = jobId ? await store.getJob(jobId) : null;
       if (result === 'ok' && job) await markApplied(store, chatId, job, ref, 'adolf');
       else if (result === 'unklar') await tg('sendMessage', { chat_id: chatId, text: 'Wenn es geklappt hat, tipp hier:', reply_markup: { inline_keyboard: [[{ text: '✅ Ich habe mich beworben', callback_data: `ok:${ref}` }]] } });

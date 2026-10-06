@@ -7,7 +7,7 @@ function load(file, imports, suffix = '') {
   const source = fs.readFileSync(file, 'utf8').replaceAll('import.meta.url', JSON.stringify('file:///tmp/test.ts')) + suffix;
   const code = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, esModuleInterop: true } }).outputText;
   const exports = {};
-  vm.runInNewContext(code, { exports, require: n => imports[n] ?? {}, console, setTimeout: () => 1, clearTimeout() {}, setInterval: () => 1, clearInterval() {}, URL, process, Buffer });
+  vm.runInNewContext(code, { exports, require: n => imports[n] ?? {}, console, setTimeout: () => ({unref(){}}), clearTimeout() {}, setInterval: () => 1, clearInterval() {}, URL, process, Buffer });
   return exports;
 }
 (async () => {
@@ -17,11 +17,11 @@ function load(file, imports, suffix = '') {
   let planned = '';
   const tg = async (method, body) => { messages.push({method, ...body}); return { message_id: ++sequence }; };
   class SDK {}
-  const page = { url: () => 'https://example.com/apply', locator: () => ({ count: async () => 0 }) };
+  const page = { isClosed:()=>false, url: () => 'https://example.com/apply', locator: () => ({ count: async () => 0 }) };
   const app = load('src/apply.ts', {
-    'node:fs': {mkdtempSync:()=>'/tmp/test'}, 'node:os':{tmpdir:()=>'/tmp'}, 'node:path':require('node:path'), './uploads.ts':{materialize:async()=>({})}, './browser.ts':{getBrowser:async()=>({newContext:async()=>({newPage:async()=>page,close:async()=>{}})})}, '@anthropic-ai/sdk': SDK, './config.ts': { cfg: {} }, './tg.ts': {tg, esc: s => s, button: (text, callback_data) => ({text, callback_data})},
+    'node:fs': {mkdtempSync:()=>'/tmp/test'}, 'node:os':{tmpdir:()=>'/tmp'}, 'node:path':require('node:path'), './uploads.ts':{materialize:async()=>({})}, 'node:crypto':require('node:crypto'), './browser.ts':{createFormContext:async()=>({newPage:async()=>page,close:async()=>{}})}, './form-portals.ts':{expandFormSections:async()=>{},uploadPortalDocuments:async()=>{},displayedFilename:async()=>true}, '@anthropic-ai/sdk': SDK, './config.ts': { cfg: {} }, './tg.ts': {tg, esc: s => s, button: (text, callback_data) => ({text, callback_data})},
   }, `
-exports.hooks = (h) => { openForm = async () => {}; collectFields = h.collect; hasForm = async () => true; planFill = h.plan; applyPlan = async () => ['📎 lebenslauf', '📎 anschreiben']; screenshot = h.shot; };
+exports.hooks = (h) => { verifyFields = async () => []; openForm = async () => {}; collectFields = h.collect; hasForm = async () => true; planFill = h.plan; applyPlan = async () => ['📎 lebenslauf', '📎 anschreiben']; screenshot = h.shot; };
 exports.sessions = sessions; exports.report = fillAndReport;
 `);
   app.hooks({collect: async () => [{ id: 'f0' }], plan: async (j,f,l,extra) => { planned = extra; return {fill:[],files:[],check:[],consent:[],offen: questions}; }, shot: async (s,text,markup) => tg('photo', {text, markup})});
@@ -34,7 +34,7 @@ exports.sessions = sessions; exports.report = fillAndReport;
   assert.doesNotMatch(messages.at(-1).text,/An welchen Tagen/);
   assert.equal(messages.at(-1).reply_markup.force_reply,true);
   assert.equal(kv.get(`form_msg:martin:${sequence}`),'1');
-  assert.match(messages[0].markup.inline_keyboard[1][0].text,/neu ausfüllen/);
+  assert.equal(messages[0].markup.inline_keyboard.length,1); // No manual-application escape hatch
   questions = ['An welchen Tagen kannst du arbeiten?'];
   await app.refillForm(store,'martin','Ab November, 20 Stunden pro Woche');
   assert.match(planned,/Ab November, 20 Stunden/);

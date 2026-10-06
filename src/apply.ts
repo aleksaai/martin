@@ -3,9 +3,11 @@
 import { writeFileSync, mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { randomBytes } from 'node:crypto';
 import Anthropic from '@anthropic-ai/sdk';
 import type { BrowserContext, Frame, Page } from 'playwright';
-import { getBrowser } from './browser.ts';
+import { createFormContext } from './browser.ts';
+import { expandFormSections, displayedFilename, uploadPortalDocuments } from './form-portals.ts';
 import { cfg } from './config.ts';
 import { CONTACT, fileSafe, letterPdf } from './documents.ts';
 import { materialize } from './uploads.ts';
@@ -17,9 +19,9 @@ import { generatePassword, getCredential, portalKey, saveCredential } from './va
 
 const client = new Anthropic({ apiKey: cfg.anthropicKey });
 
-interface Field { id: string; frame: number; kind: string; label: string; required: boolean; options?: string[] }
+interface Field { id: string; frame: number; kind: string; label: string; required: boolean; options?: string[]; value?: string; maxLength?: number; checked?: boolean }
 interface Plan { fill: { id: string; value: string }[]; files: { id: string; doc: string }[]; check: string[]; consent: string[]; offen: string[] }
-interface Session { job: StoredJob; chatId: string; ref: string; context: BrowserContext; page: Page; fields: Field[]; plan: Plan; files: Record<string, string[]>; timer: NodeJS.Timeout; extra: string }
+interface Session { job: StoredJob; chatId: string; ref: string; context: BrowserContext; page: Page; fields: Field[]; plan: Plan; files: Record<string, string[]>; timer: NodeJS.Timeout; extra: string; ready?: boolean; review?: string; issues?: string[] }
 
 const sessions = new Map<string, Session>();
 
@@ -137,9 +139,11 @@ const COLLECT_SRC = `function (fi) {
       var byFor = id ? root.querySelector('label[for="' + CSS.escape(id) + '"]') : null;
       var lb = el.getAttribute('aria-labelledby');
       var fs = el.closest('fieldset');
-      var host = root.host ? textOf(root.host.closest('[class*=upload], [class*=field], section') || root.host).slice(0, 160) : '';
+      var host = root.host ? textOf(root.querySelector('.header label') || root.host.closest('[class*=upload], [class*=field], section') || root.host).slice(0, 160) : '';
+      var group = el.closest('.RCMFormField, .form-group') || el.closest('[role=radiogroup]');
+      var groupLabel = textOf(group && group.querySelector('label, legend'));
       return [
-        el.getAttribute('aria-label'), textOf(byFor),
+        host, groupLabel, el.getAttribute('aria-label'), textOf(byFor),
         lb ? lb.split(' ').map(function (x) { return textOf(root.getElementById ? root.getElementById(x) : document.getElementById(x)); }).join(' ') : '',
         textOf(el.closest('label')), el.placeholder, el.getAttribute('name'),
         textOf(fs ? fs.querySelector('legend') : null),
@@ -147,8 +151,8 @@ const COLLECT_SRC = `function (fi) {
         host
       ].filter(Boolean).join(' | ').slice(0, 300);
     };
-    root.querySelectorAll('input, select, textarea').forEach(function (el) {
-      var type = (el.getAttribute('type') || el.tagName).toLowerCase();
+    root.querySelectorAll('input, select, textarea, [role=radio], [role=checkbox]').forEach(function (el) {
+      var type = (el.getAttribute('type') || el.getAttribute('role') || el.tagName).toLowerCase();
       if (el.getAttribute('role') === 'combobox' || el.getAttribute('aria-autocomplete') === 'list') type = 'combobox';
       if (['hidden', 'submit', 'button', 'image', 'reset', 'search'].indexOf(type) >= 0) return;
       var visible = el.offsetParent !== null || getComputedStyle(el).position === 'fixed';
@@ -156,7 +160,7 @@ const COLLECT_SRC = `function (fi) {
       var id = 'f' + fi + '_' + (n++);
       el.setAttribute('data-jr', id);
       var options;
-      if (el.tagName === 'SELECT') options = Array.prototype.map.call(el.options, function (o) { return o.text.trim(); }).filter(Boolean).slice(0, 60);
+      if (el.tagName === 'SELECT') options = Array.prototype.map.call(el.options, function (o) { return o.text.trim(); }).filter(Boolean).slice(0, 300);
       // Bei Auswahlfeldern steht die eigentliche Frage oft als Text über der Gruppe
       var question = '';
       if (type === 'radio' || type === 'checkbox') {
@@ -168,7 +172,7 @@ const COLLECT_SRC = `function (fi) {
           if (prev && textOf(prev).length > 12) question = 'Frage: ' + textOf(prev).slice(0, 200) + ' | ';
         }
       }
-      res.push({ id: id, frame: fi, kind: type, label: question + labelFor(el) + ((type === 'radio' || type === 'checkbox') ? ' [Wert: ' + el.value + ']' : ''), required: el.required || el.getAttribute('aria-required') === 'true', options: options });
+      res.push({ id: id, frame: fi, kind: type, label: question + labelFor(el) + ((type === 'radio' || type === 'checkbox') ? ' [Wert: ' + el.value + ']' : ''), required: el.required || el.getAttribute('aria-required') === 'true' || labelFor(el).includes('*') || !!(el.closest('.RCMFormField') && el.closest('.RCMFormField').querySelector('.requiredField')), options: options, value: type === 'file' || type === 'password' ? undefined : el.value, checked: el.checked || el.getAttribute('aria-checked') === 'true', maxLength: el.maxLength > 0 ? el.maxLength : undefined });
     });
   });
   return res;
@@ -177,6 +181,7 @@ const COLLECT_SRC = `function (fi) {
 /** Alle Eingabefelder in allen Frames einsammeln und markieren (data-jr). */
 async function collectFields(page: Page): Promise<Field[]> {
   await dismissCookies(page);
+  await expandFormSections(page);
   const out: Field[] = [];
   const frames = page.frames();
   for (let fi = 0; fi < frames.length; fi++) {
@@ -228,6 +233,8 @@ Regeln:
 - Felder mit Schlüssel "..._nur_wenn_pflicht" (Geburtsdatum, Geburtsort) nur ausfüllen, wenn das Feld Pflicht ist. "Vollzeitstudium/eingeschrieben?" = Ja (Vollzeitstudierender laut Bescheinigung).
 - Feld "Titel" meint einen akademischen Titel (Dr., Prof.): leer lassen. "Wirtschaftsjurist (LL.B.)" ist KEIN Titel.
 - Freitextfragen nur beantworten, wenn die Antwort sicher aus den Daten folgt; sonst in "offen" aufnehmen, auch wenn sie freiwillig sind, sofern sie für die Bewerbung wichtig wirken (Stunden, Wochentage, Starttermin, Gehalt, Vollzeitstudium).
+- Bekannte Bewerberdaten und Profil für fachliche Freitextfragen verwenden. Motivation oder Kenntnisse aus dem Profil formulieren, statt Martin danach zu fragen. "maxLength" strikt einhalten. Keine __ANSCHREIBEN__-Platzhalter in kurzen Antworten verwenden.
+- Datei-Felder und technische Uploadprobleme sind KEINE Fragen an Martin. Bekannte Unterlagen selbst zuordnen. Weitere Dokumente: Anschreiben und vorhandene ergänzende Unterlagen. Daten ohne Beleg (z.B. künftige Nebentätigkeit oder Standortpräferenz) ausdrücklich erfragen. Optionale Gesundheits-/Behinderungsfragen leer lassen.
 - Felder wie Suche, Newsletter, Login, Passwort, Konto anlegen: ignorieren.
 
 Format: {"fill":[{"id":"f0_1","value":"Martin"}],"files":[{"id":"f0_7","doc":"lebenslauf"}],"check":[],"consent":["f0_9"],"offen":["Welches Jahresbruttogehalt möchtest du angeben?"]}`,
@@ -268,20 +275,22 @@ async function applyPlan(s: Session, letter: string): Promise<string[]> {
       : await el.fill(v, { timeout: 4000 }).then(() => true).catch(() => false);
     if (ok) done.push(s.fields.find((f) => f.id === id)?.label.split(' | ')[0] || id);
   }
-  for (const { id, doc } of s.plan.files) {
+  const portalUploads = /successfactors\.|rewe-group\.com/.test(new URL(s.page.url()).hostname);
+  for (const { id, doc } of portalUploads ? [] : s.plan.files) {
     const fr = frameOf(s, id); const path = s.files[doc]; if (!fr || !path?.length) continue;
     if (await fr.locator(`[data-jr="${id}"]`).setInputFiles(path, { timeout: 8000 }).then(() => true).catch(() => false)) done.push(`📎 ${doc}`);
   }
   // Fehlt ein Dokument, Upload-Kacheln über den Dateidialog versuchen
   const uploaded = new Set(done.filter((d) => d.startsWith('📎')).map((d) => d.slice(3)));
-  if (!uploaded.has('lebenslauf') || !uploaded.has('anschreiben')) done.push(...(await uploadViaChooser(s, uploaded)));
+  if (!portalUploads && (!uploaded.has('lebenslauf') || !uploaded.has('anschreiben'))) done.push(...(await uploadViaChooser(s, uploaded)));
+  for (const doc of ['lebenslauf', 'anschreiben']) if (await displayedFilename(s.page, s.files[doc] ?? [])) done.push(`📎 ${doc}`);
   // Uploads laufen nach setInputFiles noch: warten, damit Screenshot und Absenden sie sehen
   if (done.some((d) => d.startsWith('📎'))) await s.page.waitForTimeout(5000);
   for (const id of s.plan.check) {
     const fr = frameOf(s, id); if (!fr) continue;
     await fr.locator(`[data-jr="${id}"]`).check({ timeout: 3000, force: true }).catch(() => {});
   }
-  return done;
+  return [...new Set(done)];
 }
 
 /** Upload-Kacheln ohne sichtbares Dateifeld (z.B. REWE): Kachel anklicken, Datei über den Dateidialog übergeben. */
@@ -328,6 +337,34 @@ async function screenshot(s: Session, caption: string, markup?: unknown) {
   return tgFile('sendPhoto', s.chatId, img, `Formular_${fileSafe(s.job.company)}.jpg`, extra);
 }
 
+function armSession(s: Session) {
+  clearTimeout(s.timer);
+  s.timer = setTimeout(() => { if (sessions.get(s.ref) === s) close(s.ref); }, 20 * 60_000);
+  s.timer.unref();
+}
+
+async function verifyFields(s: Session): Promise<string[]> {
+  const issues: string[] = [];
+  for (const field of s.fields) {
+    if (field.kind === 'file' || s.plan.consent.includes(field.id)) continue;
+    const locator = frameOf(s, field.id)?.locator(`[data-jr="${field.id}"]`);
+    if (!locator || !(await locator.isVisible().catch(() => false))) continue;
+    const expected = s.plan.fill.find(f => f.id === field.id);
+    const value = await locator.inputValue().catch(() => '');
+    if (expected && expected.value !== '__ANSCHREIBEN__') {
+      const actual = field.kind === 'select' ? await locator.locator('option:checked').innerText() : value;
+      if (actual.trim() !== expected.value.trim()) issues.push(`Nicht übernommen: ${field.label.slice(0,100)}`);
+    }
+    if (s.plan.check.includes(field.id) && !(await locator.isChecked())) issues.push(`Auswahl nicht übernommen: ${field.label.slice(0,100)}`);
+    if (field.required) {
+      const complete = field.kind === 'radio' ? await locator.evaluate((e:any) => e.getAttribute('role') === 'radio' ? !!e.closest('[role=radiogroup]')?.querySelector('[aria-checked=true]') : [...e.getRootNode().querySelectorAll('input[type=radio]')].some((r:any)=>r.name===e.name && r.checked))
+        : field.kind === 'checkbox' ? await locator.isChecked() : !!value.trim();
+      if (!complete) issues.push(`Pflichtfeld offen: ${field.label.slice(0,140)}`);
+    }
+  }
+  return [...new Set(issues)];
+}
+
 function close(ref: string) {
   const s = sessions.get(ref);
   if (!s) return;
@@ -336,42 +373,48 @@ function close(ref: string) {
   sessions.delete(ref);
 }
 
-export interface FormResult { ok: boolean; offen: string[]; captcha: boolean; note?: string }
+export interface FormResult { ok: boolean; ready?: boolean; offen: string[]; captcha: boolean; note?: string }
 
 async function fillAndReport(store: Store, s: Session): Promise<FormResult> {
   const app = await store.getApplication(s.job.id);
   const letter = app?.letter ?? '';
   const standing = (await store.kvGet('answers')) ?? '';
+  await expandFormSections(s.page);
+  await uploadPortalDocuments(s.page, s.files);
   s.fields = await collectFields(s.page);
   if (!s.fields.length || !(await hasForm(s.page))) {
-    await tg('sendMessage', { chat_id: s.chatId, text: `Auf der Seite finde ich kein Bewerbungsformular. Bewirb dich hier bitte direkt: ${s.page.url()}` });
-    close(s.ref);
-    return { ok: false, offen: [], captcha: false, note: 'kein Formular gefunden' };
+    await tg('sendMessage', { chat_id: s.chatId, text: 'Ich konnte das Bewerbungsformular noch nicht sicher erkennen. Deine Angaben bleiben gespeichert; ich gebe die Bewerbung noch nicht zum Absenden frei.' });
+    throw new Error('Bewerbungsformular noch nicht erkannt');
   }
   s.plan = await planFill(s.job, s.fields, letter, [standing, s.extra].filter(Boolean).join('\n'), Object.keys(s.files).filter((k) => s.files[k].length));
   const done = await applyPlan(s, letter);
-  const docs = done.filter((d) => d.startsWith('📎')).map((d) => d.slice(3));
+  s.issues = await verifyFields(s);
+  const docs: string[] = [];
+  for (const doc of ['lebenslauf','anschreiben']) if (await displayedFilename(s.page,s.files[doc] ?? [])) docs.push(doc);
   const captcha = (await s.page.locator('iframe[src*="recaptcha"], iframe[src*="hcaptcha"], iframe[src*="turnstile"]').count()) > 0;
   // Kurz und menschlich: was drin ist, sieht Martin auf dem Bild. Nur sagen, was fehlt.
-  const uploaded = docs.length === 2 ? 'beide PDFs sind drin' : docs.length === 1 ? `${docs[0] === 'lebenslauf' ? 'Lebenslauf' : 'Anschreiben'} ist drin` : 'PDFs gingen nicht rein, die musst du selbst hochladen';
+  const uploaded = docs.includes('lebenslauf') && docs.includes('anschreiben') ? 'Lebenslauf und Anschreiben sind geprüft hochgeladen' : 'die Dokument-Uploads sind noch nicht vollständig bestätigt';
   const text = [
     `Formular bei ${esc(s.job.company)} steht, ${uploaded}.`,
     s.plan.offen.length
       ? 'Ich frage dich gleich nach den fehlenden Angaben. Antworte einfach hier im Chat, ich fülle für dich weiter aus.'
-      : docs.includes('lebenslauf') ? 'Kontrollblick drauf. Passt alles: Absenden.' : 'Der Lebenslauf-Upload hat nicht geklappt. Antworte hier, damit wir das klären können.',
+      : s.issues.length ? 'Einige Felder sind noch nicht korrekt übernommen. Die Bewerbung bleibt bei mir offen; ich gebe sie erst nach erfolgreicher Prüfung zum Absenden frei.' : docs.includes('lebenslauf') && (!s.files.anschreiben?.length || docs.includes('anschreiben')) ? 'Die erkannten Felder sind geprüft. Kontrolliere bitte den Screenshot; mit Absenden bestätigst du die Bewerbung.' : 'Der Dokument-Upload ist noch nicht bestätigt. Ich halte die Bewerbung zur technischen Prüfung offen.',
     captcha ? 'Die Seite hat eine Captcha-Prüfung, das Absenden könnte deshalb scheitern.' : '',
   ].filter(Boolean).join('\n\n');
   // Absenden nur, wenn nichts offen ist UND der Lebenslauf wirklich drin ist (sonst ist es vermutlich das falsche Formular)
-  const canSend = !s.plan.offen.length && docs.includes('lebenslauf');
-  const rows = [[...(canSend ? [button('✅ Absenden', `send:${s.ref}`)] : []), button('❌ Abbrechen', `stop:${s.ref}`)], [{ text: '🔗 Im Browser neu ausfüllen', url: s.page.url() }]];
-  await store.kvSet(`form_draft:${s.chatId}:${s.job.id}`, JSON.stringify({ extra: s.extra, questions: s.plan.offen }));
+  const canSend = !s.plan.offen.length && !s.issues.length && docs.includes('lebenslauf') && (!s.files.anschreiben?.length || docs.includes('anschreiben')) && !captcha;
+  s.ready = canSend;
+  s.review = canSend ? randomBytes(5).toString('hex') : undefined;
+  const rows = [[...(canSend ? [button('✅ Absenden', `send:${s.ref}:${s.review}`)] : []), button('❌ Abbrechen', `stop:${s.ref}`)]];
+  await store.kvSet(`form_draft:${s.chatId}:${s.job.id}`, JSON.stringify({ extra: s.extra, questions: s.plan.offen, issues: s.issues ?? [] }));
   const msg = await screenshot(s, text, { inline_keyboard: rows });
   await store.kvSet(`form_msg:${s.chatId}:${msg.message_id}`, s.ref);
   if (s.plan.offen.length) {
     const question = await tg('sendMessage', { chat_id: s.chatId, text: `Kamerad, für ${s.job.company}:\n\n${s.plan.offen.slice(0, 2).join('\n\n')}\n\nAntworte in deinen Worten hier im Chat. Ich trage es ein und frage danach nur noch nach dem, was fehlt.`, reply_markup: { force_reply: true, selective: true } });
     await store.kvSet(`form_msg:${s.chatId}:${question.message_id}`, s.ref);
   }
-  return { ok: true, offen: s.plan.offen, captcha };
+  armSession(s);
+  return { ok: true, ready: canSend, offen: s.plan.offen, captcha, note: s.issues.join('; ') || undefined };
 }
 
 /** Portal verlangt ein Konto: Martin legt es mit einem vorgeschlagenen Passwort an, der Bot loggt sich danach selbst ein. */
@@ -438,6 +481,7 @@ export async function nextFormPage(store: Store, chatId: string): Promise<FormRe
   const jobId = await store.kvGet(`active_job:${chatId}`);
   const s = [...sessions.values()].reverse().find((x) => x.chatId === chatId && (!jobId || x.job.id === jobId));
   if (!s) return null;
+  clearTimeout(s.timer); s.ready=false;
   const btn = s.page.getByRole('button', { name: /^(weiter|nächste|next|continue|fortfahren|speichern und weiter|save and continue)/i }).first();
   if (!(await btn.count())) return { ok: false, offen: s.plan.offen, captcha: false, note: 'kein Weiter-Knopf auf der Seite' };
   await btn.click({ timeout: 8000 });
@@ -457,13 +501,31 @@ export async function refillForm(store: Store, chatId: string, angaben: string):
   const s = [...sessions.values()].reverse().find((x) => x.chatId === chatId && x.job.id === jobId);
   if (!s) return null;
   clearTimeout(s.timer);
-  s.timer = setTimeout(() => close(s.ref), 20 * 60_000);
+  s.ready = false;
   s.extra = [s.extra, angaben].filter(Boolean).join('\n');
-  await store.kvSet(`form_draft:${chatId}:${s.job.id}`, JSON.stringify({ extra: s.extra, questions: s.plan.offen }));
-  return fillAndReport(store, s);
+  await store.kvSet(`form_draft:${chatId}:${s.job.id}`, JSON.stringify({ extra: s.extra, questions: s.plan.offen, issues: s.issues ?? [] }));
+  try { return await fillAndReport(store, s); }
+  catch (e) { console.error('Formular ergänzen:', (e as Error).message); close(s.ref); return startForm(store, chatId, s.job, s.ref); }
 }
 
 export async function startForm(store: Store, chatId: string, job: StoredJob, ref: string, extra = ''): Promise<FormResult | null> {
+  const current = [...sessions.values()].find(x => x.chatId === chatId && x.job.id === job.id && !x.page.isClosed());
+  if (current) return refillForm(store, chatId, extra);
+  let error = '';
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try { return await startFormAttempt(store, chatId, job, ref, attempt ? '' : extra); }
+    catch (e) {
+      error = (e as Error).message;
+      console.error(`Formular ${job.company}, Versuch ${attempt + 1}: ${error.slice(0, 400)}`);
+      if (!attempt) await tg('sendMessage', {chat_id: chatId, text: 'Die Browsersitzung hat einen Fehler. Ich öffne sie neu und übernehme deine gespeicherten Angaben.'});
+    }
+  }
+  await store.kvSet(`form_issue:${chatId}:${job.id}`, JSON.stringify({at:new Date().toISOString(),error}));
+  await tg('sendMessage', {chat_id:chatId, text:`Bei ${job.company} ist die technische Prüfung noch nicht durch. Deine Angaben bleiben gespeichert und es wurde nichts abgeschickt. Ich halte die Bewerbung offen.`, reply_markup:{inline_keyboard:[[button('Erneut prüfen',`form:${ref}`)]]}});
+  return {ok:false,offen:[],captcha:false,note:'Technischer Fehler protokolliert; Bewerbung bleibt offen'};
+}
+
+async function startFormAttempt(store: Store, chatId: string, job: StoredJob, ref: string, extra = ''): Promise<FormResult | null> {
   for (const old of [...sessions.values()]) if (old.chatId === chatId) close(old.ref);
   await store.kvSet(`active_job:${chatId}`, job.id);
   const draft = JSON.parse((await store.kvGet(`form_draft:${chatId}:${job.id}`)) ?? '{}');
@@ -479,7 +541,7 @@ export async function startForm(store: Store, chatId: string, job: StoredJob, re
   }
   if (/arbeitsagentur\.de/i.test(applyUrl)) {
     if (wait) await tg('deleteMessage', { chat_id: chatId, message_id: wait.message_id }).catch(() => {});
-    await tg('sendMessage', { chat_id: chatId, text: `Für diese Stelle finde ich keine eigene Online-Anzeige von ${job.company}, nur die der Arbeitsagentur. Dort steht der Bewerbungsweg hinter einer Sicherheitsabfrage, die musst du selbst lösen: ${applyUrl}` });
+    await tg('sendMessage', { chat_id: chatId, text: `Für diese Stelle finde ich keine eigene Online-Anzeige von ${job.company}, nur die der Arbeitsagentur. Ich halte die Bewerbung offen. Für diesen Zugang ist eine persönliche Sicherheitsbestätigung nötig; ich habe noch nichts abgeschickt.` });
     return { ok: false, offen: [], captcha: false, note: 'nur Arbeitsagentur-Anzeige, Martin wurde informiert' };
   }
   const app = await store.getApplication(job.id);
@@ -487,10 +549,9 @@ export async function startForm(store: Store, chatId: string, job: StoredJob, re
   const files = await materialize(store);
   if (app?.letter) { const p = join(dir, `Anschreiben_Martin_Spalevic.pdf`); writeFileSync(p, await letterPdf(app.letter, job)); files.anschreiben = [p]; }
 
-  const browser = await getBrowser();
-  const context = await browser.newContext({ locale: 'de-DE', viewport: { width: 1280, height: 900 }, userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0 Safari/537.36' });
+  const context = await createFormContext({ locale: 'de-DE', viewport: { width: 1280, height: 900 }, userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0 Safari/537.36' });
   const page = await context.newPage();
-  const s: Session = { job, chatId, ref, context, page, fields: [], plan: { fill: [], files: [], check: [], consent: [], offen: [] }, files, extra, timer: setTimeout(() => close(ref), 20 * 60_000) };
+  const s: Session = { job, chatId, ref, context, page, fields: [], plan: { fill: [], files: [], check: [], consent: [], offen: [] }, files, extra, timer: setTimeout(() => {}, 0) };
   sessions.set(ref, s);
   try {
     await openForm(page, applyUrl, store);
@@ -503,16 +564,42 @@ export async function startForm(store: Store, chatId: string, job: StoredJob, re
       return askForAccount(store, chatId, job, ref, e);
     }
     await dropWait();
-    await tg('sendMessage', { chat_id: chatId, text: `Das Formular konnte ich nicht ausfüllen (${(e as Error).message.slice(0, 120)}). Bitte bewirb dich direkt:\n${applyUrl}` });
     close(ref);
-    return { ok: false, offen: [], captcha: false, note: (e as Error).message.slice(0, 120) };
+    throw e;
   }
 }
 
 /** Antwort auf den Formular-Screenshot: fehlende Angaben übernehmen und neu ausfüllen. */
-export async function submitForm(store: Store, chatId: string, ref: string): Promise<'ok' | 'unklar' | 'weg'> {
+const submissions = new Map<string, Promise<'ok' | 'unklar' | 'weg'>>();
+export async function submitForm(store: Store, chatId: string, ref: string, review?: string): Promise<'ok' | 'unklar' | 'weg'> {
+  const key = `${chatId}:${ref}`;
+  if (submissions.has(key)) return 'weg';
+  const task = submitFormOnce(store, chatId, ref, review);
+  submissions.set(key, task);
+  try { return await task; } finally { if (submissions.get(key) === task) submissions.delete(key); }
+}
+
+async function submitFormOnce(store: Store, chatId: string, ref: string, review?: string): Promise<'ok' | 'unklar' | 'weg'> {
   const s = sessions.get(ref);
-  if (!s) { await tg('sendMessage', { chat_id: chatId, text: 'Das Formular ist nicht mehr offen (nach 20 Minuten schließe ich es). Tipp nochmal auf 🤖 Für mich bewerben.' }); return 'weg'; }
+  if (s && s.chatId !== chatId) return 'weg';
+  const jobId = await store.kvGet(`ref:${ref}`);
+  const delivery = jobId ? await store.kvGet(`form_delivery:${chatId}:${jobId}`) : null;
+  if (delivery) {
+    const status = JSON.parse(delivery).status;
+    await tg('sendMessage',{chat_id:chatId,text:status==='confirmed' ? 'Diese Bewerbung ist bereits bestätigt abgeschickt.' : 'Für diese Bewerbung wurde das Absenden bereits gestartet. Ich vermeide eine Doppelbewerbung; zuerst muss der Eingang geklärt werden.'});
+    return 'weg';
+  }
+  if (!s || s.chatId !== chatId || !s.ready || !review || review !== s.review || s.page.isClosed()) {
+    await tg('sendMessage', {chat_id:chatId,text:'Diese Freigabe ist nicht mehr aktuell. Ich prüfe das Formular erneut; danach bestätigst du den neuen Stand.'});
+    const jobId = await store.kvGet(`ref:${ref}`); const job = jobId ? await store.getJob(jobId) : null;
+    if (job) await startForm(store,chatId,job,ref);
+    return 'weg';
+  }
+  clearTimeout(s.timer);
+  const issues = await verifyFields(s);
+  const docsOk = await displayedFilename(s.page,s.files.lebenslauf ?? []) && (!s.files.anschreiben?.length || await displayedFilename(s.page,s.files.anschreiben));
+  if (issues.length || !docsOk) { s.ready=false; await fillAndReport(store,s); return 'weg'; }
+  s.ready = false; s.review = undefined;
   await tg('sendMessage', { chat_id: chatId, text: 'Schicke ab …' });
   for (const id of s.plan.consent) {
     const fr = frameOf(s, id);
@@ -525,16 +612,22 @@ export async function submitForm(store: Store, chatId: string, ref: string): Pro
   const fr = s.page.frames()[fi];
   const named = fr.getByRole('button', { name: /absenden|bewerbung (ab)?senden|jetzt bewerben|senden|submit|send application|apply/i });
   const target = (await named.count()) ? named.last() : fr.locator('button[type=submit], input[type=submit]').last();
-  await target.click({ timeout: 8000 });
+  await store.kvSet(`form_delivery:${chatId}:${s.job.id}`,JSON.stringify({at:new Date().toISOString(),status:'attempting'}));
+  try { await target.click({ timeout: 8000 }); } catch(e) {
+    console.error('Absenden ohne Bestätigung:',(e as Error).message);
+    await tg('sendMessage',{chat_id:chatId,text:'Der Absendevorgang wurde unterbrochen. Der Eingang muss vor einem erneuten Senden geklärt werden; deine Bewerbung wird nicht als erfolgreich markiert.'});
+    armSession(s); return 'unklar';
+  }
   await s.page.waitForTimeout(7000);
   const body = (await s.page.locator('body').innerText().catch(() => '')) + (await fr.locator('body').innerText().catch(() => ''));
-  const success = /vielen dank|danke für (deine|ihre) bewerbung|erfolgreich|eingegangen|thank you for (your )?appl|application (has been )?(received|submitted)/i.test(body);
-  await screenshot(s, success ? '✅ Abgeschickt. So sieht die Bestätigung aus.' : '⚠️ Ich habe auf Absenden getippt, sehe aber keine eindeutige Bestätigung. Bitte prüf den Screenshot und, wenn nötig, schick es selbst über den Link ab.');
-  close(ref);
+  const success = /(?:vielen dank|danke) für (?:deine|ihre) (?:bewerbung|erfolgreiche bewerbung)|(?:bewerbung|application).{0,80}(?:erfolgreich (?:übermittelt|versandt|eingegangen)|ist eingegangen|has been (?:received|submitted)|successfully submitted)|thank you for (?:your )?application/i.test(body);
+  await store.kvSet(`form_delivery:${chatId}:${s.job.id}`,JSON.stringify({at:new Date().toISOString(),status:success?'confirmed':'uncertain'}));
+  await screenshot(s, success ? '✅ Abgeschickt. So sieht die Bestätigung aus.' : 'Ich habe auf Absenden geklickt, aber noch keine eindeutige Eingangsbestätigung. Ich markiere die Bewerbung noch nicht als versendet und sende sie nicht blind erneut.').catch(e => console.error('Versandbestätigung-Bild:', e.message));
+  if (success) close(ref); else armSession(s);
   return success ? 'ok' : 'unklar';
 }
 
-export function cancelForm(ref: string) { close(ref); }
+export function cancelForm(ref: string, chatId?: string) { if (!chatId || sessions.get(ref)?.chatId === chatId) close(ref); }
 
 /** Nur für Tests: Formular öffnen, ausfüllen, Screenshot als Datei. Schickt NIE ab und sendet nichts an Telegram. */
 export async function dryRunForm(job: StoredJob, letter: string, outPng: string): Promise<{ fields: number; done: string[]; plan: Plan }> {
@@ -542,12 +635,13 @@ export async function dryRunForm(job: StoredJob, letter: string, outPng: string)
   const files: Record<string, string[]> = { lebenslauf: [new URL('../data/docs/lebenslauf.pdf', import.meta.url).pathname] };
   files.anschreiben = [join(dir, 'Anschreiben_Martin_Spalevic.pdf')];
   writeFileSync(files.anschreiben[0], await letterPdf(letter, job));
-  const browser = await getBrowser();
-  const context = await browser.newContext({ locale: 'de-DE', viewport: { width: 1280, height: 900 } });
+  const context = await createFormContext({ locale: 'de-DE', viewport: { width: 1280, height: 900 } });
   const page = await context.newPage();
   const s: Session = { job, chatId: '', ref: 'test', context, page, fields: [], plan: { fill: [], files: [], check: [], consent: [], offen: [] }, files, extra: '', timer: setTimeout(() => {}, 0) };
   try {
     await openForm(page, job.url);
+    await expandFormSections(page);
+    await uploadPortalDocuments(page,files);
     s.fields = await collectFields(page);
     console.log(`Formular: ${page.url()}, Eingaben: ${await page.locator('input, textarea, select').count()}, erkannt: ${s.fields.length}`);
     s.plan = await planFill(job, s.fields, letter, '', Object.keys(s.files).filter((k) => s.files[k].length));
@@ -556,6 +650,16 @@ export async function dryRunForm(job: StoredJob, letter: string, outPng: string)
     return { fields: s.fields.length, done, plan: s.plan };
   } finally {
     await context.close();
-    await browser.close();
   }
+}
+
+/** Read-only diagnostics for isolated browser acceptance tests; never exposes passwords. */
+export async function inspectForm(chatId: string) {
+  const s = [...sessions.values()].find(x => x.chatId === chatId);
+  if (!s) return null;
+  return { ready: s.ready, review: s.review, ref: s.ref, plan: s.plan, issues: s.issues, url: s.page.url(),
+    fields: await Promise.all(s.fields.filter(f=>f.kind!=='password').map(async f=>({ ...f,
+      actual: await frameOf(s,f.id)?.locator(`[data-jr="${f.id}"]`).inputValue().catch(()=>null),
+      checked: ['radio','checkbox'].includes(f.kind) ? await frameOf(s,f.id)?.locator(`[data-jr="${f.id}"]`).isChecked().catch(()=>false) : undefined,
+    }))) };
 }

@@ -158,6 +158,8 @@ Antwort wirklich aufgerufen zu haben. Versprich nichts, was du nicht kannst. Ein
 automatisch um 7, 12 und 17 Uhr, sofort mit /suche. Die Suche einstellen kannst du aber (suche_anpassen). Erkenntnisse für die Stellenauswahl (z.B. „Großkanzleien verlangen oft
 das erste Staatsexamen“) kannst du mit merken festhalten, dann berücksichtigt die Bewertung das künftig.
 
+Bei technischen Problemen niemals Martin auffordern, die Bewerbung selbst auszufüllen oder Unterlagen selbst hochzuladen. Du übernimmst die Arbeit mit den Formular-Werkzeugen; Probleme konkret erklären und die Bewerbung offen halten. Persönliche Angaben und notwendige Sicherheitsbestätigungen gezielt erfragen. Keinen Erfolg behaupten, solange ein Upload oder Pflichtfeld ungeprüft ist.
+
 Grenzen: Abschicken kannst du nicht, das macht Martin mit dem Knopf „Absenden“ unter dem Screenshot. Erfinde nichts über Martin.
 Antworten auf Formularfragen IMMER direkt mit formular_ergaenzen eintragen oder bei geschlossener Sitzung mit formular_oeffnen fortsetzen. Auch Teilantworten übernehmen; für Gehaltsberatung erst beraten, keine Zahlen ohne Martins Entscheidung eintragen. Nicht nur das Speichern anbieten. Das System stellt die nächsten konkreten Fragen selbst. Bewerbungsbezogenes Zwischenspeichern ist kein dauerhaftes Profil-Merken.
 
@@ -187,7 +189,7 @@ async function runTool(store: Store, chatId: string, name: string, input: any, c
     case 'formular_ergaenzen': {
       const r = await refillForm(store, chatId, String(input.angaben ?? ''));
       if (!r) return runTool(store, chatId, 'formular_oeffnen', input, ctx);
-      return r.ok ? `Neu ausgefüllt, Screenshot mit Text ist schon raus. Noch offen: ${r.offen.join(', ') || 'nichts, Absenden-Knopf ist da'}.` : `Fehlgeschlagen: ${r.note}`;
+      return r.ok ? `Neu ausgefüllt, Screenshot mit Text ist schon raus. Noch offen: ${r.offen.join(', ') || (r.ready ? 'nichts, Absenden-Knopf ist da' : `technische Prüfung offen: ${r.note ?? 'Unterlagen/Portal prüfen'}`)}.` : `Fehlgeschlagen: ${r.note}`;
     }
     case 'formular_oeffnen': {
       const jobId = await store.kvGet(`active_job:${chatId}`);
@@ -196,7 +198,7 @@ async function runTool(store: Store, chatId: string, name: string, input: any, c
       const { shortRef } = await import('./telegram.ts');
       const r = await startForm(store, chatId, job, await shortRef(store, job.id), String(input.angaben ?? ''));
       if (!r?.ok) return `Kein Formular ausgefüllt: ${r?.note ?? 'unbekannt'}. Martin hat dazu schon eine Nachricht bekommen.`;
-      return `Ausgefüllt, Screenshot mit Text ist schon raus (Martin sieht dort auch, was fehlt). Noch offen: ${r.offen.join(', ') || 'nichts'}. ${r.offen.length ? 'Absenden-Knopf gibt es erst, wenn nichts mehr offen ist.' : 'Absenden-Knopf ist da.'}`;
+      return `Ausgefüllt, Screenshot mit Text ist schon raus (Martin sieht dort auch, was fehlt). Noch offen: ${r.offen.join(', ') || 'nichts'}. ${r.ready ? 'Absenden-Knopf ist da.' : `Noch nicht zum Absenden freigegeben. ${r.note ?? ''}`}`;
     }
     case 'anschreiben_aendern': {
       const jobId = await store.kvGet(`active_job:${chatId}`);

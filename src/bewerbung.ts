@@ -73,14 +73,16 @@ export async function prepareApplication(store: Store, chatId: string, job: Stor
     if (email) {
       await status.step('Schreibe die Begleitmail …');
       const mail = await writeMail(job);
-      how = `📧 Die Anzeige nennt <b>${esc(email)}</b>. Schick dort Anschreiben und Lebenslauf als Anhang hin, zum Beispiel mit diesem Text:\n\n${esc(mail)}`;
+      how = `📧 Die Anzeige nennt <b>${esc(email)}</b>. Ich habe die Begleitmail vorbereitet. Zunächst prüfe ich, ob ich die Bewerbung im Firmenportal fertigstellen kann:\n\n${esc(mail)}`;
+      rows.push([button('Bewerbungsweg prüfen', `form:${ref}`)]);
     } else if (canFillForm(job.source, applyUrl)) {
       how = `🤖 Soll ich mich für dich bewerben? Ich fülle das Formular bei ${esc(job.company)} aus, lade beide PDFs hoch und schicke dir einen Screenshot. Abgeschickt wird erst, wenn du zustimmst.`;
       rows.push([button('🤖 Für mich bewerben', `form:${ref}`)]);
     } else if (/arbeitsagentur\.de/.test(applyUrl)) {
       how = `🔗 Diese Stelle gibt es nur bei der Arbeitsagentur, eine eigene Online-Anzeige des Arbeitgebers habe ich nicht gefunden. Den Bewerbungsweg zeigt die Arbeitsagentur erst nach einer Sicherheitsabfrage: Anzeige öffnen, ganz unten bei „Informationen zur Bewerbung“ die Zeichen eingeben, dann siehst du Mail oder Link.\n${esc(applyUrl)}`;
     } else {
-      how = `🔗 Diese Bewerbung läuft über ein Portal mit eigenem Konto. Öffne die Anzeige und lade dort beide PDFs hoch:\n${esc(applyUrl)}`;
+      how = `🔗 Diese Bewerbung läuft über ein Portal mit eigenem Konto. Ich prüfe den Portalzugang und übernehme das Ausfüllen nach der Anmeldung:\n${esc(applyUrl)}`;
+      rows.push([button('Portal öffnen lassen', `form:${ref}`)]);
     }
     rows.push([button('✅ Ich habe mich schon beworben', `ok:${ref}`)]);
     await status.done();

@@ -1,0 +1,12 @@
+import assert from 'node:assert/strict';
+import {BrowserPool,createFormContext,withBrowser} from '../src/browser.ts';
+const pool=new BrowserPool(30);
+const [a,b]=await Promise.all([pool.acquire(),pool.acquire()]);
+assert.equal(a.browser,b.browser,'concurrent launch must use one browser');
+const page=await a.browser.newPage();await page.setContent('<input value="preserved">');
+a.release();await new Promise(r=>setTimeout(r,80));assert.equal(await page.locator('input').inputValue(),'preserved');
+b.release();await new Promise(r=>setTimeout(r,150));assert.equal(a.browser.isConnected(),false);
+const form=await createFormContext();const p=await form.newPage();await p.setContent('<input value="form">');
+await withBrowser(async pdf=>{const page=await pdf.newPage();await page.setContent('PDF');await page.pdf();await page.close();});
+assert.equal(await p.locator('input').inputValue(),'form');await form.close();
+console.log('PASS real Chromium: shared launches, active lease retention, idle cleanup, PDF/form isolation');process.exit(0);

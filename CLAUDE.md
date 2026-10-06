@@ -43,3 +43,8 @@ npm run check                          # Typprüfung
 - Martins Profil (`data/profile.md`) ist die einzige Quelle für Anschreiben. Keine erfundenen Fakten.
 - Kein automatischer Bewerbungsversand ohne ausdrückliche Entscheidung von Aleksa und Martin.
 - Railway startet mit `node --import tsx src/index.ts` direkt (kein `sh -c`), damit SIGTERM ankommt.
+
+
+## Bewerbungsablauf testen (06.10.2026)
+`src/browser.ts` trennt PDF- und Formular-Browser über Leases. `src/form-portals.ts` behandelt geprüfte REWE-/EY-Upload- und Aufklappdialoge. Telegram-Aktionen je Chat seriell; keine konkurrierenden Starts. `apply.ts` speichert Fragen/Angaben pro Bewerbung und prüft Formularwerte, Pflichtfelder und Uploads, bevor ein versionierter Absenden-Knopf erscheint. `form_delivery` schützt gegen Doppelsenden und hält unklare Übermittlungen separat.
+Vor Veröffentlichung: Typprüfung plus `test-form-conversation.cjs`, `test-browser-lifecycle.ts`, `test-application-e2e.ts`. Bei Portaländerungen zusätzlich echten isolierten Browserlauf mit `test-live-application.ts`; dafür private Runtime-/Snapshot-Dateien über `MARTIN_TEST_DIR`, niemals ins Repo. Der Live-Test sendet keine Bewerbung oder Telegram-Nachricht. Keine generischen Erfolgsmeldungen ohne Readback und keine Rückgabe der kompletten Ausfüllarbeit an Martin.

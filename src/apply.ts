@@ -2,13 +2,14 @@
 // Eine Sitzung bleibt bis zu 20 Minuten offen, damit Martin fehlende Angaben nachreichen kann.
 import { writeFileSync, mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { basename, join } from 'node:path';
 import { randomBytes } from 'node:crypto';
 import Anthropic from '@anthropic-ai/sdk';
 import type { BrowserContext, Frame, Page } from 'playwright';
 import { createFormContext } from './browser.ts';
 import { expandFormSections, displayedFilename, uploadPortalDocuments } from './form-portals.ts';
 import { cfg } from './config.ts';
+import { hasApplicationForm, followPosting } from './form-navigation.ts';
 import { CONTACT, fileSafe, letterPdf } from './documents.ts';
 import { materialize } from './uploads.ts';
 import { findOriginalPosting, PROFILE } from './llm.ts';
@@ -27,8 +28,8 @@ const sessions = new Map<string, Session>();
 
 const DECLINE = /^(alle ablehnen|ablehnen|nur (notwendige|erforderliche|essenzielle)|notwendige cookies|reject( all)?|decline|deny|nur technisch notwendige)/i;
 // Knopftexte variieren stark ("Auf diese Stelle bewerben", "Apply for this job", "Jetzt bewerben"): Stichwort genügt
-const APPLY = /(bewerben|bewirb|zur bewerbung|bewerbung starten|apply)/i;
-const NOT_APPLY = /initiativ|zurück|alle stellen|weitere stellen|teilen|share|login|anmelden/i;
+const APPLY = /(bewerben|bewirb|zur bewerbung|bewerbung starten|online.?bewerbung|submit application|apply)/i;
+const NOT_APPLY = /initiativ|zurück|alle stellen|weitere stellen|teilen|share|login|anmelden|informationen|information|datenschutz|privacy|tipps|tips/i;
 
 async function dismissCookies(page: Page) {
   for (const f of page.frames()) {
@@ -41,16 +42,7 @@ async function dismissCookies(page: Page) {
   }
 }
 
-async function hasForm(page: Page): Promise<boolean> {
-  // Ein Bewerbungsformular hat einen Datei-Upload oder eine E-Mail plus weitere Felder. Ein einzelnes E-Mail-Feld ist meist ein Job-Alarm.
-  for (const f of page.frames()) {
-    const files = await f.locator('input[type=file]').count().catch(() => 0);
-    const emails = await f.locator('input[type=email], input[name*=mail i]').count().catch(() => 0);
-    const texts = await f.locator('input[type=text], input:not([type]), input[type=tel]').count().catch(() => 0);
-    if (files > 0 || (emails > 0 && texts >= 2)) return true;
-  }
-  return false;
-}
+const hasForm = hasApplicationForm;
 
 class LoginRequired extends Error {
   constructor(public portal: string, public registerUrl: string | null, public loginUrl: string, public failed = false) { super('Login nötig'); }
@@ -90,27 +82,35 @@ async function handleLogin(store: Store, page: Page) {
   if (await loginFrame(page)) throw new LoginRequired(portal, null, page.url(), true);
 }
 
-async function openForm(page: Page, url: string, store?: Store) {
+async function openForm(page: Page, url: string, store?: Store, job?: StoredJob) {
   await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 45_000 });
   await page.waitForTimeout(2500);
   await dismissCookies(page);
   if (store) await handleLogin(store, page);
-  for (let round = 0; round < 2 && !(await hasForm(page)); round++) {
+  await expandFormSections(page);
+  const visited = new Set<string>();
+  for (let round = 0; round < 6 && !(await hasForm(page)); round++) {
+    console.log('Formular-Navigation', round + 1, new URL(page.url()).hostname + new URL(page.url()).pathname);
+    if (visited.has(page.url())) break;
+    visited.add(page.url());
+    if (await followPosting(page, job, store)) { await dismissCookies(page); continue; }
     const cands = page.locator('a, button');
     const n = Math.min(await cands.count(), 400);
     let clicked = false;
     for (let i = 0; i < n && !clicked; i++) {
       const el = cands.nth(i);
       const t = ((await el.innerText().catch(() => '')) || '').trim();
-      if (t.length < 40 && APPLY.test(t) && !NOT_APPLY.test(t) && (await el.isVisible().catch(() => false))) {
+      if (t.length < 40 && APPLY.test(t) && !NOT_APPLY.test(t) && ((await el.isVisible().catch(() => false)) || !!(await el.getAttribute('href').catch(()=>null)))) {
         // Links direkt aufrufen: Knöpfe mit target=_blank öffnen sonst einen neuen Tab, und Cookie-Overlays fangen Klicks ab
         const rawHref = await el.getAttribute('href').catch(() => null);
         let href = '';
         try { href = rawHref && !/^(javascript:|#)/.test(rawHref) ? new URL(rawHref, page.url()).toString() : ''; } catch { /* kein Link */ }
         console.log(`Bewerben-Knopf: "${t}" → ${href || '(Klick)'}`);
+        if (await el.evaluate(e => (e as HTMLButtonElement).type === 'submit' && !!(e as HTMLButtonElement).form)) continue;
         if (/^https?:/.test(href) && href.split('#')[0] !== page.url().split('#')[0]) {
           await page.goto(href, { waitUntil: 'domcontentloaded', timeout: 45_000 }).catch(() => {});
         } else {
+          if (!(await el.isVisible())) continue;
           await el.click({ timeout: 5000, force: true }).catch(() => {});
         }
         clicked = true;
@@ -121,7 +121,9 @@ async function openForm(page: Page, url: string, store?: Store) {
     await page.waitForTimeout(3000);
     await dismissCookies(page);
     if (store) await handleLogin(store, page);
+    await expandFormSections(page);
   }
+  if (!(await hasForm(page))) throw new Error('Noch kein belegtes Bewerbungsformular erreicht');
 }
 
 const COLLECT_SRC = `function (fi) {
@@ -140,8 +142,9 @@ const COLLECT_SRC = `function (fi) {
       var lb = el.getAttribute('aria-labelledby');
       var fs = el.closest('fieldset');
       var host = root.host ? textOf(root.querySelector('.header label') || root.host.closest('[class*=upload], [class*=field], section') || root.host).slice(0, 160) : '';
-      var group = el.closest('.RCMFormField, .form-group') || el.closest('[role=radiogroup]');
-      var groupLabel = textOf(group && group.querySelector('label, legend'));
+      var group = el.closest('.RCMFormField, .form-group, .row') || el.closest('[role=radiogroup]');
+      var groupLabel = textOf(group && group.querySelector('label, legend, .control-label'));
+      if (!groupLabel && group) groupLabel = textOf(group.querySelector('.col-sm-4, .col-md-4, .col-xs-4'));
       return [
         host, groupLabel, el.getAttribute('aria-label'), textOf(byFor),
         lb ? lb.split(' ').map(function (x) { return textOf(root.getElementById ? root.getElementById(x) : document.getElementById(x)); }).join(' ') : '',
@@ -172,7 +175,7 @@ const COLLECT_SRC = `function (fi) {
           if (prev && textOf(prev).length > 12) question = 'Frage: ' + textOf(prev).slice(0, 200) + ' | ';
         }
       }
-      res.push({ id: id, frame: fi, kind: type, label: question + labelFor(el) + ((type === 'radio' || type === 'checkbox') ? ' [Wert: ' + el.value + ']' : ''), required: el.required || el.getAttribute('aria-required') === 'true' || labelFor(el).includes('*') || !!(el.closest('.RCMFormField') && el.closest('.RCMFormField').querySelector('.requiredField')), options: options, value: type === 'file' || type === 'password' ? undefined : el.value, checked: el.checked || el.getAttribute('aria-checked') === 'true', maxLength: el.maxLength > 0 ? el.maxLength : undefined });
+      res.push({ id: id, frame: fi, kind: type, label: question + labelFor(el) + ((type === 'radio' || type === 'checkbox') ? ' [Wert: ' + el.value + ']' : ''), required: /^(mandatory|pflichtfeld)$/i.test(el.placeholder || '') || el.required || el.getAttribute('aria-required') === 'true' || labelFor(el).includes('*') || !!(el.closest('.RCMFormField') && el.closest('.RCMFormField').querySelector('.requiredField')), options: options, value: type === 'file' || type === 'password' ? undefined : el.value, checked: el.checked || el.getAttribute('aria-checked') === 'true', maxLength: el.maxLength > 0 ? el.maxLength : undefined });
     });
   });
   return res;
@@ -263,7 +266,8 @@ async function applyPlan(s: Session, letter: string): Promise<string[]> {
         await el.fill(v.slice(0, 40), { timeout: 3000 }).catch(() => {});
         await fr.waitForTimeout(500);
         const opt = fr.getByRole('option', { name: v, exact: true });
-        await ((await opt.count()) ? opt.first() : fr.getByRole('option').first()).click({ timeout: 3000 });
+        if (!(await opt.count())) throw new Error('Angeforderte Auswahloption nicht gefunden');
+        await opt.first().click({ timeout: 3000 });
         return true;
       })().catch(() => false);
       if (ok) done.push(s.fields.find((f) => f.id === id)?.label.split(' | ')[0] || id);
@@ -276,7 +280,24 @@ async function applyPlan(s: Session, letter: string): Promise<string[]> {
     if (ok) done.push(s.fields.find((f) => f.id === id)?.label.split(' | ')[0] || id);
   }
   const portalUploads = /successfactors\.|rewe-group\.com/.test(new URL(s.page.url()).hostname);
+  // One shared attachments widget (HRworks and similar): upload each document,
+  // rather than treating the single input as a CV-only slot.
+  const shared = s.fields.filter(f=>f.kind==='file' && /application documents|bewerbungsunterlagen|attachments|unterlagen|anhänge/i.test(f.label));
+  const sharedIds = new Set<string>();
+  if (!portalUploads && shared.length === 1) {
+    const f=shared[0]; const input=frameOf(s,f.id)!.locator(`[data-jr="${f.id}"]`);
+    const paths=[...(s.files.lebenslauf??[]),...(s.files.anschreiben??[]),...(s.files.weitere??[])];
+    for (const path of [...new Set(paths)].slice(0,5)) {
+      if (await displayedFilename(s.page,[path])) continue;
+      await input.setInputFiles(path,{timeout:10000});
+      for(let i=0;i<30 && !(await displayedFilename(s.page,[path]));i++) await s.page.waitForTimeout(300);
+      if (!(await displayedFilename(s.page,[path]))) throw new Error(`Upload nicht bestätigt: ${basename(path)}`);
+    }
+    sharedIds.add(f.id);
+    for (const doc of ['lebenslauf','anschreiben']) if(await displayedFilename(s.page,s.files[doc]??[]))done.push(`📎 ${doc}`);
+  }
   for (const { id, doc } of portalUploads ? [] : s.plan.files) {
+    if (sharedIds.has(id)) continue;
     const fr = frameOf(s, id); const path = s.files[doc]; if (!fr || !path?.length) continue;
     if (await fr.locator(`[data-jr="${id}"]`).setInputFiles(path, { timeout: 8000 }).then(() => true).catch(() => false)) done.push(`📎 ${doc}`);
   }
@@ -337,6 +358,20 @@ async function screenshot(s: Session, caption: string, markup?: unknown) {
   return tgFile('sendPhoto', s.chatId, img, `Formular_${fileSafe(s.job.company)}.jpg`, extra);
 }
 
+async function submitControl(s: Session) {
+  const counts = new Map<number, number>();
+  for (const f of s.fields) counts.set(f.frame, (counts.get(f.frame) ?? 0) + 1);
+  const fi = [...counts.entries()].sort((a,b)=>b[1]-a[1])[0]?.[0] ?? 0;
+  const fr = s.page.frames()[fi];
+  if (!fr) return null;
+  const name = /^\s*(?:bewerbung (?:ab)?senden|jetzt bewerben|bewerben|absenden|senden|submit(?: application)?|send application|apply)\s*$/i;
+  const buttons = fr.getByRole('button',{name}).filter({visible:true});
+  if(await buttons.count())return buttons.last();
+  // HRworks renders its final action as an anchor without href or button role.
+  const anchors = fr.locator('a:not([href]), a[href="#"], a[href^="javascript:"]').filter({hasText:name}).filter({visible:true});
+  return await anchors.count() ? anchors.last() : null;
+}
+
 function armSession(s: Session) {
   clearTimeout(s.timer);
   s.timer = setTimeout(() => { if (sessions.get(s.ref) === s) close(s.ref); }, 20 * 60_000);
@@ -373,7 +408,7 @@ function close(ref: string) {
   sessions.delete(ref);
 }
 
-export interface FormResult { ok: boolean; ready?: boolean; offen: string[]; captcha: boolean; note?: string }
+export interface FormResult { ok: boolean; state?: 'ready' | 'needs_answers' | 'blocked'; ready?: boolean; offen: string[]; captcha: boolean; note?: string }
 
 async function fillAndReport(store: Store, s: Session): Promise<FormResult> {
   const app = await store.getApplication(s.job.id);
@@ -387,8 +422,28 @@ async function fillAndReport(store: Store, s: Session): Promise<FormResult> {
     throw new Error('Bewerbungsformular noch nicht erkannt');
   }
   s.plan = await planFill(s.job, s.fields, letter, [standing, s.extra].filter(Boolean).join('\n'), Object.keys(s.files).filter((k) => s.files[k].length));
-  const done = await applyPlan(s, letter);
+  await applyPlan(s, letter);
   s.issues = await verifyFields(s);
+  const missingDocs = async () => !(await displayedFilename(s.page,s.files.lebenslauf??[])) || (!!s.files.anschreiben?.length && !(await displayedFilename(s.page,s.files.anschreiben)));
+  const technical = () => s.issues!.filter(issue=>!issue.startsWith('Pflichtfeld offen:') || !s.plan.offen.length);
+  if (technical().length || await missingDocs()) {
+    console.log(`Formular-Reparatur ${s.job.company}: ${technical().join('; ') || 'Dokumente'}`);
+    await dismissCookies(s.page);
+    await uploadPortalDocuments(s.page,s.files);
+    s.fields = await collectFields(s.page);
+    s.plan = await planFill(s.job,s.fields,letter,[standing,s.extra,'Diese technischen Fehler selbst beheben: '+technical().join('; ')].filter(Boolean).join('\n'),Object.keys(s.files));
+    await applyPlan(s,letter);
+    s.issues = await verifyFields(s);
+    if (technical().length || await missingDocs()) throw new Error(`Formularprüfung: ${technical().join('; ') || 'Upload bleibt unbestätigt'}`);
+  }
+  if (!await submitControl(s)) {
+    if (!s.plan.offen.length) throw new Error('Absende-Schaltfläche noch nicht sicher erkannt');
+    s.issues.push('Absende-Schaltfläche noch nicht sicher erkannt');
+  }
+  const qualification = /erstes? staatsexamen.{0,45}in der tasche|examen mit starker leistung/i.test(s.job.description ?? '');
+  if (qualification && !(await store.kvGet(`requirement_ack:${s.chatId}:${s.job.id}`))) {
+    s.plan.offen.unshift('Diese Anzeige verlangt bereits das erste Staatsexamen. Dein Profil enthält den LL.B. und das laufende Jurastudium. Möchtest du dich trotzdem mit diesen ehrlichen Angaben bewerben?');
+  }
   const docs: string[] = [];
   for (const doc of ['lebenslauf','anschreiben']) if (await displayedFilename(s.page,s.files[doc] ?? [])) docs.push(doc);
   const captcha = (await s.page.locator('iframe[src*="recaptcha"], iframe[src*="hcaptcha"], iframe[src*="turnstile"]').count()) > 0;
@@ -405,7 +460,7 @@ async function fillAndReport(store: Store, s: Session): Promise<FormResult> {
   const canSend = !s.plan.offen.length && !s.issues.length && docs.includes('lebenslauf') && (!s.files.anschreiben?.length || docs.includes('anschreiben')) && !captcha;
   s.ready = canSend;
   s.review = canSend ? randomBytes(5).toString('hex') : undefined;
-  const rows = [[...(canSend ? [button('✅ Absenden', `send:${s.ref}:${s.review}`)] : []), button('❌ Abbrechen', `stop:${s.ref}`)]];
+  const rows = [[...(canSend ? [button('✅ Absenden', `send:${s.ref}:${s.review}`)] : []), ...(!canSend && !s.plan.offen.length ? [button('Erneut prüfen', `form:${s.ref}`)] : []), button('❌ Abbrechen', `stop:${s.ref}`)]];
   await store.kvSet(`form_draft:${s.chatId}:${s.job.id}`, JSON.stringify({ extra: s.extra, questions: s.plan.offen, issues: s.issues ?? [] }));
   const msg = await screenshot(s, text, { inline_keyboard: rows });
   await store.kvSet(`form_msg:${s.chatId}:${msg.message_id}`, s.ref);
@@ -414,7 +469,7 @@ async function fillAndReport(store: Store, s: Session): Promise<FormResult> {
     await store.kvSet(`form_msg:${s.chatId}:${question.message_id}`, s.ref);
   }
   armSession(s);
-  return { ok: true, ready: canSend, offen: s.plan.offen, captcha, note: s.issues.join('; ') || undefined };
+  return { ok: true, state: canSend ? 'ready' : s.plan.offen.length ? 'needs_answers' : 'blocked', ready: canSend, offen: s.plan.offen, captcha, note: s.issues.join('; ') || undefined };
 }
 
 /** Portal verlangt ein Konto: Martin legt es mit einem vorgeschlagenen Passwort an, der Bot loggt sich danach selbst ein. */
@@ -554,7 +609,8 @@ async function startFormAttempt(store: Store, chatId: string, job: StoredJob, re
   const s: Session = { job, chatId, ref, context, page, fields: [], plan: { fill: [], files: [], check: [], consent: [], offen: [] }, files, extra, timer: setTimeout(() => {}, 0) };
   sessions.set(ref, s);
   try {
-    await openForm(page, applyUrl, store);
+    await openForm(page, applyUrl, store, s.job);
+    await store.kvSet(`resolved_posting:${chatId}:${job.id}`, JSON.stringify({url:s.job.url,location:s.job.location,description:s.job.description}));
     await dropWait();
     return await fillAndReport(store, s);
   } catch (e) {
@@ -605,13 +661,8 @@ async function submitFormOnce(store: Store, chatId: string, ref: string, review?
     const fr = frameOf(s, id);
     await fr?.locator(`[data-jr="${id}"]`).check({ timeout: 3000, force: true }).catch(() => {});
   }
-  // Absende-Knopf im Frame mit den meisten Feldern
-  const counts = new Map<number, number>();
-  for (const f of s.fields) counts.set(f.frame, (counts.get(f.frame) ?? 0) + 1);
-  const fi = [...counts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? 0;
-  const fr = s.page.frames()[fi];
-  const named = fr.getByRole('button', { name: /absenden|bewerbung (ab)?senden|jetzt bewerben|senden|submit|send application|apply/i });
-  const target = (await named.count()) ? named.last() : fr.locator('button[type=submit], input[type=submit]').last();
+  const target = await submitControl(s);
+  if (!target) { await fillAndReport(store,s); return 'weg'; }
   await store.kvSet(`form_delivery:${chatId}:${s.job.id}`,JSON.stringify({at:new Date().toISOString(),status:'attempting'}));
   try { await target.click({ timeout: 8000 }); } catch(e) {
     console.error('Absenden ohne Bestätigung:',(e as Error).message);
@@ -619,7 +670,7 @@ async function submitFormOnce(store: Store, chatId: string, ref: string, review?
     armSession(s); return 'unklar';
   }
   await s.page.waitForTimeout(7000);
-  const body = (await s.page.locator('body').innerText().catch(() => '')) + (await fr.locator('body').innerText().catch(() => ''));
+  const body = (await s.page.locator('body').innerText().catch(() => ''));
   const success = /(?:vielen dank|danke) für (?:deine|ihre) (?:bewerbung|erfolgreiche bewerbung)|(?:bewerbung|application).{0,80}(?:erfolgreich (?:übermittelt|versandt|eingegangen)|ist eingegangen|has been (?:received|submitted)|successfully submitted)|thank you for (?:your )?application/i.test(body);
   await store.kvSet(`form_delivery:${chatId}:${s.job.id}`,JSON.stringify({at:new Date().toISOString(),status:success?'confirmed':'uncertain'}));
   await screenshot(s, success ? '✅ Abgeschickt. So sieht die Bestätigung aus.' : 'Ich habe auf Absenden geklickt, aber noch keine eindeutige Eingangsbestätigung. Ich markiere die Bewerbung noch nicht als versendet und sende sie nicht blind erneut.').catch(e => console.error('Versandbestätigung-Bild:', e.message));
@@ -639,7 +690,7 @@ export async function dryRunForm(job: StoredJob, letter: string, outPng: string)
   const page = await context.newPage();
   const s: Session = { job, chatId: '', ref: 'test', context, page, fields: [], plan: { fill: [], files: [], check: [], consent: [], offen: [] }, files, extra: '', timer: setTimeout(() => {}, 0) };
   try {
-    await openForm(page, job.url);
+    await openForm(page, job.url, undefined, job);
     await expandFormSections(page);
     await uploadPortalDocuments(page,files);
     s.fields = await collectFields(page);
@@ -658,6 +709,7 @@ export async function inspectForm(chatId: string) {
   const s = [...sessions.values()].find(x => x.chatId === chatId);
   if (!s) return null;
   return { ready: s.ready, review: s.review, ref: s.ref, plan: s.plan, issues: s.issues, url: s.page.url(),
+    submitControlFound: !!(await submitControl(s)),
     fields: await Promise.all(s.fields.filter(f=>f.kind!=='password').map(async f=>({ ...f,
       actual: await frameOf(s,f.id)?.locator(`[data-jr="${f.id}"]`).inputValue().catch(()=>null),
       checked: ['radio','checkbox'].includes(f.kind) ? await frameOf(s,f.id)?.locator(`[data-jr="${f.id}"]`).isChecked().catch(()=>false) : undefined,

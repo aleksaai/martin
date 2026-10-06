@@ -11,6 +11,19 @@ const client = new Anthropic({ apiKey: cfg.anthropicKey });
 
 interface Extracted { title: string; url: string; location?: string }
 
+/** Preserve detail URL and city when the page already contains structured job cards. */
+export function extractJobCards(html: string, base: string): Extracted[] {
+  const cards = html.split(/<div\b[^>]*class=["']job-item["'][^>]*>/i).slice(1);
+  const result: Extracted[] = [];
+  for (const card of cards) {
+    const title = /class=["'][^"']*\bjob-item-titel\b[^"']*["'][^>]*>([\s\S]*?)<\/div>/i.exec(card)?.[1];
+    const location = /class=["'][^"']*\bjob-item-standort\b[^"']*["'][^>]*>([\s\S]*?)<\/div>/i.exec(card)?.[1];
+    const href = /<a\b[^>]*href=["']([^"']*\/job\/[^"']+)["']/i.exec(card)?.[1];
+    if (title && href) result.push({ title: stripHtml(title).trim(), location: location ? stripHtml(location).trim() : undefined, url: new URL(href.replace(/&amp;/g,'&'),base).toString() });
+  }
+  return result;
+}
+
 function links(html: string, base: string): string {
   const out: string[] = [];
   const seen = new Set<string>();
@@ -35,8 +48,10 @@ export async function listHtml(c: Company, store: Store): Promise<RawJob[]> {
   const hash = createHash('sha1').update(text + linkList).digest('hex');
   const cacheKey = `html:${url}`;
   const cached = await store.kvGet(cacheKey);
+  const structured = extractJobCards(html,url);
   let jobs: Extracted[];
-  if (cached && JSON.parse(cached).hash === hash) {
+  if (structured.length) jobs = structured;
+  else if (cached && JSON.parse(cached).hash === hash) {
     jobs = JSON.parse(cached).jobs;
   } else {
     const res = await client.messages.create({

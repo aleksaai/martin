@@ -17,11 +17,11 @@ function load(file, imports, suffix = '') {
   let planned = '';
   const tg = async (method, body) => { messages.push({method, ...body}); return { message_id: ++sequence }; };
   class SDK {}
-  const page = { isClosed:()=>false, url: () => 'https://example.com/apply', locator: () => ({ count: async () => 0 }) };
+  const page = { frames:()=>[], isClosed:()=>false, url: () => 'https://example.com/apply', locator: () => ({ count: async () => 0 }) };
   const app = load('src/apply.ts', {
-    'node:fs': {mkdtempSync:()=>'/tmp/test'}, 'node:os':{tmpdir:()=>'/tmp'}, 'node:path':require('node:path'), './uploads.ts':{materialize:async()=>({})}, 'node:crypto':require('node:crypto'), './browser.ts':{createFormContext:async()=>({newPage:async()=>page,close:async()=>{}})}, './form-portals.ts':{expandFormSections:async()=>{},uploadPortalDocuments:async()=>{},displayedFilename:async()=>true}, '@anthropic-ai/sdk': SDK, './config.ts': { cfg: {} }, './tg.ts': {tg, esc: s => s, button: (text, callback_data) => ({text, callback_data})},
+    'node:fs': {mkdtempSync:()=>'/tmp/test'}, 'node:os':{tmpdir:()=>'/tmp'}, 'node:path':require('node:path'), './uploads.ts':{materialize:async()=>({})}, 'node:crypto':require('node:crypto'), './browser.ts':{createFormContext:async()=>({newPage:async()=>page,close:async()=>{}})}, './form-navigation.ts':{hasApplicationForm:async()=>true}, './form-portals.ts':{expandFormSections:async()=>{},uploadPortalDocuments:async()=>{},displayedFilename:async()=>true}, '@anthropic-ai/sdk': SDK, './config.ts': { cfg: {} }, './tg.ts': {tg, esc: s => s, button: (text, callback_data) => ({text, callback_data})},
   }, `
-exports.hooks = (h) => { verifyFields = async () => []; openForm = async () => {}; collectFields = h.collect; hasForm = async () => true; planFill = h.plan; applyPlan = async () => ['📎 lebenslauf', '📎 anschreiben']; screenshot = h.shot; };
+exports.hooks = (h) => { submitControl = async () => ({}); verifyFields = h.verify || (async () => []); openForm = async () => {}; collectFields = h.collect; planFill = h.plan; applyPlan = async () => ['📎 lebenslauf', '📎 anschreiben']; screenshot = h.shot; };
 exports.sessions = sessions; exports.report = fillAndReport;
 `);
   app.hooks({collect: async () => [{ id: 'f0' }], plan: async (j,f,l,extra) => { planned = extra; return {fill:[],files:[],check:[],consent:[],offen: questions}; }, shot: async (s,text,markup) => tg('photo', {text, markup})});
@@ -69,5 +69,13 @@ exports.sessions = sessions; exports.report = fillAndReport;
   await agent.chat(store,'martin','Montag bis Mittwoch',500,false,questionId);
   assert.equal(kv.get('active_job:martin'),'REWE');
   assert.equal(reopened.j.id,'REWE'); assert.equal(reopened.extra,'Montag bis Mittwoch');
-  console.log('PASS: direct questions, partial answers, saved draft, application isolation, reply routing, expired-session recovery. No external calls.');
+  let checks=0,plans=0;
+  app.hooks({collect:async()=>[{id:'f0'}], plan:async()=>{plans++;return {fill:[],files:[],check:[],consent:[],offen:[]}}, verify:async()=>checks++===0?['Nicht übernommen: Vorname']:[], shot:async()=>({message_id:900})});
+  app.sessions.set('1',session);
+  const recovered=await app.report(store,session);
+  assert.equal(plans,2,'failed field triggers another fill plan without user intervention');
+  assert.equal(recovered.ready,true);
+  app.hooks({collect:async()=>[{id:'f0'}],plan:async()=>({fill:[],files:[],check:[],consent:[],offen:[]}),verify:async()=>['Nicht übernommen: Vorname'],shot:async()=>({message_id:901})});
+  await assert.rejects(()=>app.report(store,session),/Formularprüfung/,'persistent technical errors must not become a silent waiting state');
+  console.log('PASS: questions, partial answers, drafts, routing, expired-session recovery and automatic repair/error propagation. No external calls.');
 })().catch(e=>{console.error(e);process.exitCode=1;});

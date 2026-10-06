@@ -30,12 +30,12 @@ const TOOLS: Anthropic.Tool[] = [
   {
     name: 'formular_ergaenzen',
     description: 'Trägt Martins Angaben ins gerade offene Bewerbungsformular ein, füllt neu aus und schickt ihm automatisch einen neuen Screenshot. Angaben in natürlicher Sprache, z.B. "Gehaltswunsch 14.000 € brutto im Jahr, Start 1.11.2026, 20 Stunden pro Woche, Mo bis Mi, Studium Teilzeit".',
-    input_schema: { type: 'object' as const, properties: { angaben: { type: 'string' } }, required: ['angaben'] },
+    input_schema: { type: 'object' as const, properties: { angaben: { type: 'string' }, anforderung_bestaetigt: { type: 'boolean', description: 'Nur true, wenn Martin auf den erklärten Unterschied zur Stellenanforderung ausdrücklich bestätigt hat, sich trotzdem mit ehrlichen Angaben bewerben zu wollen.' } }, required: ['angaben'] },
   },
   {
     name: 'formular_oeffnen',
     description: 'Öffnet das Bewerbungsformular der aktuellen Bewerbung (neu), füllt es mit allen bekannten und gespeicherten Angaben aus und schickt einen Screenshot. Für "bewirb mich", "mach das Formular nochmal auf". Schickt NICHT ab. Optional zusätzliche Angaben mitgeben.',
-    input_schema: { type: 'object' as const, properties: { angaben: { type: 'string' } } },
+    input_schema: { type: 'object' as const, properties: { angaben: { type: 'string' }, anforderung_bestaetigt: { type: 'boolean', description: 'Nur true, wenn Martin auf den erklärten Unterschied zur Stellenanforderung ausdrücklich bestätigt hat, sich trotzdem mit ehrlichen Angaben bewerben zu wollen.' } } },
   },
   {
     name: 'anschreiben_aendern',
@@ -187,11 +187,13 @@ async function contextBlock(store: Store, chatId: string): Promise<string> {
 async function runTool(store: Store, chatId: string, name: string, input: any, ctx: { messageId?: number }): Promise<string> {
   switch (name) {
     case 'formular_ergaenzen': {
+      if (input.anforderung_bestaetigt === true) { const jobId = await store.kvGet(`active_job:${chatId}`); if(jobId) await store.kvSet(`requirement_ack:${chatId}:${jobId}`,'true'); }
       const r = await refillForm(store, chatId, String(input.angaben ?? ''));
       if (!r) return runTool(store, chatId, 'formular_oeffnen', input, ctx);
       return r.ok ? `Neu ausgefüllt, Screenshot mit Text ist schon raus. Noch offen: ${r.offen.join(', ') || (r.ready ? 'nichts, Absenden-Knopf ist da' : `technische Prüfung offen: ${r.note ?? 'Unterlagen/Portal prüfen'}`)}.` : `Fehlgeschlagen: ${r.note}`;
     }
     case 'formular_oeffnen': {
+      if (input.anforderung_bestaetigt === true) { const jobId = await store.kvGet(`active_job:${chatId}`); if(jobId) await store.kvSet(`requirement_ack:${chatId}:${jobId}`,'true'); }
       const jobId = await store.kvGet(`active_job:${chatId}`);
       const job = jobId ? await store.getJob(jobId) : null;
       if (!job) return 'Keine aktuelle Bewerbung. Martin soll erst unter einer Stelle auf „📨 Bewerben“ tippen.';

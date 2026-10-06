@@ -23,7 +23,7 @@ Bewertungsskala "score" (0-10):
 
 "machbar": false, wenn die Stelle für ihn praktisch nicht geht: Vollzeit ohne Studentenstatus, nur für Studierende anderer Fächer
 (z.B. ausdrücklich Informatik), Arbeitsort vor Ort „außerhalb des Suchgebiets“ (steht bei Ort) ohne Vollremote, Remote nur im Ausland,
-oder verlangt Sprachen/Qualifikationen, die er nicht hat. Sonst true.
+oder verlangt Sprachen/Qualifikationen, die er nicht hat. Insbesondere: Martin hat einen LL.B., aber noch kein erstes Staatsexamen. Wird dieses vorausgesetzt (z.B. „erstes Staatsexamen in der Tasche“, „Examen mit starker Leistung“), ist machbar=false. Ein laufendes Studium ersetzt diese Anforderung nicht. Sonst true.
 
 "mode": "remote" | "hybrid" | "vor Ort" | "unbekannt", wie es in der Anzeige steht.
 

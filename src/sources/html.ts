@@ -29,7 +29,7 @@ function links(html: string, base: string): string {
 export async function listHtml(c: Company, store: Store): Promise<RawJob[]> {
   const url = c.ats.feed_url ?? (c as any).careers_url;
   if (!url) return [];
-  const html = await fetchText(url);
+  const html = await fetchText(url, {}, 20_000);
   const text = stripHtml(html).slice(0, 12_000);
   const linkList = links(html, url);
   const hash = createHash('sha1').update(text + linkList).digest('hex');

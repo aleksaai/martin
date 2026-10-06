@@ -22,7 +22,9 @@ interface Session { job: StoredJob; chatId: string; ref: string; context: Browse
 const sessions = new Map<string, Session>();
 
 const DECLINE = /^(alle ablehnen|ablehnen|nur (notwendige|erforderliche|essenzielle)|notwendige cookies|reject( all)?|decline|deny|nur technisch notwendige)/i;
-const APPLY = /^(jetzt |online )?(bewerben|bewirb dich|zur bewerbung|apply( now| for this job)?|bewerbung starten|jetzt bewerben)/i;
+// Knopftexte variieren stark ("Auf diese Stelle bewerben", "Apply for this job", "Jetzt bewerben"): Stichwort genügt
+const APPLY = /(bewerben|bewirb|zur bewerbung|bewerbung starten|apply)/i;
+const NOT_APPLY = /initiativ|zurück|alle stellen|weitere stellen|teilen|share|login|anmelden/i;
 
 async function dismissCookies(page: Page) {
   for (const f of page.frames()) {
@@ -54,7 +56,7 @@ async function openForm(page: Page, url: string) {
     for (let i = 0; i < n && !clicked; i++) {
       const el = cands.nth(i);
       const t = ((await el.innerText().catch(() => '')) || '').trim();
-      if (t.length < 40 && APPLY.test(t) && (await el.isVisible().catch(() => false))) {
+      if (t.length < 40 && APPLY.test(t) && !NOT_APPLY.test(t) && (await el.isVisible().catch(() => false))) {
         await el.click({ timeout: 5000 }).catch(() => {});
         clicked = true;
       }
@@ -66,42 +68,61 @@ async function openForm(page: Page, url: string) {
   }
 }
 
+const COLLECT_SRC = `function (fi) {
+  var res = [];
+  var textOf = function (el) { return ((el && el.textContent) || '').replace(/\\s+/g, ' ').trim(); };
+  var labelFor = function (el) {
+    var id = el.getAttribute('id');
+    var byFor = id ? document.querySelector('label[for="' + CSS.escape(id) + '"]') : null;
+    var lb = el.getAttribute('aria-labelledby');
+    var fs = el.closest('fieldset');
+    return [
+      el.getAttribute('aria-label'), textOf(byFor),
+      lb ? lb.split(' ').map(function (x) { return textOf(document.getElementById(x)); }).join(' ') : '',
+      textOf(el.closest('label')), el.placeholder, el.getAttribute('name'),
+      textOf(fs ? fs.querySelector('legend') : null),
+      textOf(el.parentElement ? el.parentElement.previousElementSibling : null)
+    ].filter(Boolean).join(' | ').slice(0, 300);
+  };
+  var n = 0;
+  document.querySelectorAll('input, select, textarea').forEach(function (el) {
+    var type = (el.getAttribute('type') || el.tagName).toLowerCase();
+    if (el.getAttribute('role') === 'combobox' || el.getAttribute('aria-autocomplete') === 'list') type = 'combobox';
+    if (['hidden', 'submit', 'button', 'image', 'reset', 'search'].indexOf(type) >= 0) return;
+    var visible = el.offsetParent !== null || getComputedStyle(el).position === 'fixed';
+    if (!visible && type !== 'file' && type !== 'checkbox' && type !== 'radio') return;
+    var id = 'f' + fi + '_' + (n++);
+    el.setAttribute('data-jr', id);
+    var options;
+    if (el.tagName === 'SELECT') options = Array.prototype.map.call(el.options, function (o) { return o.text.trim(); }).filter(Boolean).slice(0, 60);
+    res.push({ id: id, frame: fi, kind: type, label: labelFor(el) + ((type === 'radio' || type === 'checkbox') ? ' [Wert: ' + el.value + ']' : ''), required: el.required || el.getAttribute('aria-required') === 'true', options: options });
+  });
+  return res;
+}`;
+
 /** Alle Eingabefelder in allen Frames einsammeln und markieren (data-jr). */
 async function collectFields(page: Page): Promise<Field[]> {
   const out: Field[] = [];
   const frames = page.frames();
   for (let fi = 0; fi < frames.length; fi++) {
-    const got = await frames[fi].evaluate((fi) => {
-      const res: any[] = [];
-      const textOf = (el: Element | null) => (el?.textContent ?? '').replace(/\s+/g, ' ').trim();
-      const labelFor = (el: HTMLElement) => {
-        const id = el.getAttribute('id');
-        const byFor = id ? document.querySelector(`label[for="${CSS.escape(id)}"]`) : null;
-        const lb = el.getAttribute('aria-labelledby');
-        return [
-          el.getAttribute('aria-label'), textOf(byFor), lb ? lb.split(' ').map((x) => textOf(document.getElementById(x))).join(' ') : '',
-          textOf(el.closest('label')), (el as HTMLInputElement).placeholder, el.getAttribute('name'),
-          textOf(el.closest('fieldset')?.querySelector('legend') ?? null),
-          textOf(el.parentElement?.previousElementSibling ?? null),
-        ].filter(Boolean).join(' | ').slice(0, 300);
-      };
-      let n = 0;
-      document.querySelectorAll('input, select, textarea').forEach((node) => {
-        const el = node as HTMLInputElement;
-        const type = (el.getAttribute('type') || el.tagName).toLowerCase();
-        if (['hidden', 'submit', 'button', 'image', 'reset', 'search'].includes(type)) return;
-        const style = getComputedStyle(el);
-        const visible = el.offsetParent !== null || style.position === 'fixed';
-        if (!visible && type !== 'file' && type !== 'checkbox' && type !== 'radio') return;
-        const id = `f${fi}_${n++}`;
-        el.setAttribute('data-jr', id);
-        let options: string[] | undefined;
-        if (el.tagName === 'SELECT') options = [...(el as unknown as HTMLSelectElement).options].map((o) => o.text.trim()).filter(Boolean).slice(0, 60);
-        res.push({ id, frame: fi, kind: type, label: labelFor(el) + (type === 'radio' || type === 'checkbox' ? ` [Wert: ${el.value}]` : ''), required: el.required || el.getAttribute('aria-required') === 'true', options });
-      });
-      return res;
-    }, fi).catch(() => [] as any[]);
+    // Als Text übergeben: tsx würde in eine echte Funktion Hilfsaufrufe (__name) einbauen, die es im Browser nicht gibt
+    const got = await frames[fi].evaluate(`(${COLLECT_SRC})(${fi})`).catch((e: Error) => {
+      console.error(`Felder in Frame ${fi} nicht lesbar: ${e.message.slice(0, 160)}`);
+      return [] as any[];
+    }) as any[];
     out.push(...got);
+  }
+  // Selbstgebaute Aufklapplisten (React-Select bei Greenhouse u.a.): kurz öffnen und Optionen lesen
+  for (const f of out.filter((x) => x.kind === 'combobox').slice(0, 15)) {
+    const fr = frames[f.frame];
+    const el = fr.locator(`[data-jr="${f.id}"]`);
+    try {
+      await el.click({ timeout: 3000 });
+      await fr.waitForTimeout(400);
+      const opts = await fr.locator('[role="option"]').allInnerTexts();
+      f.options = opts.map((o) => o.trim()).filter(Boolean).slice(0, 80);
+      await el.press('Escape').catch(() => {});
+    } catch { /* bleibt ohne Optionen */ }
   }
   return out;
 }
@@ -109,7 +130,7 @@ async function collectFields(page: Page): Promise<Field[]> {
 async function planFill(job: StoredJob, fields: Field[], letter: string, extra: string): Promise<Plan> {
   const res = await client.messages.create({
     model: cfg.letterModel,
-    max_tokens: 3000,
+    max_tokens: 16000, // Sonnet denkt vorher nach
     system: `Du füllst ein Online-Bewerbungsformular für Martin Spalevic aus. Antworte ausschließlich mit JSON.
 
 Seine Daten (nur diese verwenden, nichts erfinden):
@@ -124,7 +145,7 @@ ${extra || '(keine)'}
 Dokumente zum Hochladen: "lebenslauf", "anschreiben"${docPath('immatrikulation') ? ', "immatrikulation"' : ''}.
 
 Regeln:
-- "fill": Textfelder und Auswahllisten. Bei Auswahllisten exakt einen Optionstext aus "options" als value. Textfeld für Anschreiben/Nachricht/Motivation/Cover Letter: value = "__ANSCHREIBEN__".
+- "fill": Textfelder und Auswahllisten (auch kind "combobox"). Bei Auswahllisten exakt einen Optionstext aus "options" als value. Für Herkunftsfragen (wie aufmerksam geworden) die Option für Website/Karriereseite/Internet/Jobbörse wählen, falls vorhanden. Telefon-Ländervorwahl: Deutschland/Germany (+49). Textfeld für Anschreiben/Nachricht/Motivation/Cover Letter: value = "__ANSCHREIBEN__".
 - "files": Datei-Felder. Lebenslauf/CV/Resume -> "lebenslauf", Anschreiben/Cover Letter/Motivationsschreiben -> "anschreiben", Immatrikulation/Studienbescheinigung -> "immatrikulation". Gibt es nur ein Datei-Feld für alle Unterlagen: "lebenslauf". Nicht vorhandenes Dokument weglassen.
 - "check": IDs von Radio-Buttons oder Checkboxen, die eine Sachfrage beantworten (z.B. Anrede, Studierender ja), nur wenn die Antwort sicher aus seinen Daten folgt.
 - "consent": IDs von Einwilligungs-Checkboxen (Datenschutz, Speicherung, Talentpool nur wenn Pflicht). NICHT in "check" aufnehmen.
@@ -150,7 +171,20 @@ async function applyPlan(s: Session, letter: string): Promise<string[]> {
     const fr = frameOf(s, id); if (!fr) continue;
     const el = fr.locator(`[data-jr="${id}"]`);
     const v = value === '__ANSCHREIBEN__' ? letter : value;
-    const tag = await el.evaluate((n) => n.tagName).catch(() => '');
+    const kind = s.fields.find((f) => f.id === id)?.kind;
+    if (kind === 'combobox') {
+      const ok = await (async () => {
+        await el.click({ timeout: 3000 });
+        await el.fill(v.slice(0, 40), { timeout: 3000 }).catch(() => {});
+        await fr.waitForTimeout(500);
+        const opt = fr.getByRole('option', { name: v, exact: true });
+        await ((await opt.count()) ? opt.first() : fr.getByRole('option').first()).click({ timeout: 3000 });
+        return true;
+      })().catch(() => false);
+      if (ok) done.push(s.fields.find((f) => f.id === id)?.label.split(' | ')[0] || id);
+      continue;
+    }
+    const tag = await el.evaluate('n => n.tagName').catch(() => '');
     const ok = tag === 'SELECT'
       ? await el.selectOption({ label: v }, { timeout: 4000 }).then(() => true).catch(() => false)
       : await el.fill(v, { timeout: 4000 }).then(() => true).catch(() => false);
@@ -160,6 +194,8 @@ async function applyPlan(s: Session, letter: string): Promise<string[]> {
     const fr = frameOf(s, id); const path = s.files[doc]; if (!fr || !path) continue;
     if (await fr.locator(`[data-jr="${id}"]`).setInputFiles(path, { timeout: 8000 }).then(() => true).catch(() => false)) done.push(`📎 ${doc}`);
   }
+  // Uploads laufen nach setInputFiles noch: warten, damit Screenshot und Absenden sie sehen
+  if (done.some((d) => d.startsWith('📎'))) await s.page.waitForTimeout(5000);
   for (const id of s.plan.check) {
     const fr = frameOf(s, id); if (!fr) continue;
     await fr.locator(`[data-jr="${id}"]`).check({ timeout: 3000, force: true }).catch(() => {});
@@ -276,3 +312,28 @@ export async function submitForm(store: Store, chatId: string, ref: string): Pro
 }
 
 export function cancelForm(ref: string) { close(ref); }
+
+/** Nur für Tests: Formular öffnen, ausfüllen, Screenshot als Datei. Schickt NIE ab und sendet nichts an Telegram. */
+export async function dryRunForm(job: StoredJob, letter: string, outPng: string): Promise<{ fields: number; done: string[]; plan: Plan }> {
+  const dir = mkdtempSync(join(tmpdir(), 'bewerbung-'));
+  const files: Record<string, string> = {};
+  const cv = docPath('lebenslauf'); if (cv) files.lebenslauf = cv;
+  files.anschreiben = join(dir, 'Anschreiben_Martin_Spalevic.pdf');
+  writeFileSync(files.anschreiben, await letterPdf(letter, job));
+  const browser = await getBrowser();
+  const context = await browser.newContext({ locale: 'de-DE', viewport: { width: 1280, height: 900 } });
+  const page = await context.newPage();
+  const s: Session = { job, chatId: '', ref: 'test', context, page, fields: [], plan: { fill: [], files: [], check: [], consent: [], offen: [] }, files, extra: '', timer: setTimeout(() => {}, 0) };
+  try {
+    await openForm(page, job.url);
+    s.fields = await collectFields(page);
+    console.log(`Formular: ${page.url()}, Eingaben: ${await page.locator('input, textarea, select').count()}, erkannt: ${s.fields.length}`);
+    s.plan = await planFill(job, s.fields, letter, '');
+    const done = await applyPlan(s, letter);
+    writeFileSync(outPng, await page.screenshot({ fullPage: true }));
+    return { fields: s.fields.length, done, plan: s.plan };
+  } finally {
+    await context.close();
+    await browser.close();
+  }
+}

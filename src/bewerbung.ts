@@ -26,7 +26,7 @@ async function sendLetterPdf(chatId: string, job: StoredJob, letter: string) {
 /** Knopf "📨 Bewerben": alles vorbereiten, was Martin zum Abschicken braucht. */
 export async function prepareApplication(store: Store, chatId: string, job: StoredJob, ref: string) {
   await tg('sendChatAction', { chat_id: chatId, action: 'typing' });
-  const letter = await writeLetter(job, await store.letterExamples(4));
+  const letter = await writeLetter(job, await store.letterExamples(4), (await store.kvGet('answers')) ?? '');
   await store.upsertApplication({ job_id: job.id, letter });
   await store.setFeedback(job.id, 'gut');
 

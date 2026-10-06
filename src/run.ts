@@ -49,17 +49,22 @@ export async function runOnce(store: Store, log = console.log): Promise<RunRepor
 
   const companies = loadCompanies().filter((c) => !cfg.sourcesOff.includes(c.ats.type));
   // Wenige gleichzeitig, damit kein Anbieter uns drosselt
-  for (let i = 0; i < companies.length; i += 6) {
-    await Promise.all(companies.slice(i, i + 6).map(async (c) => {
+  // Fortlaufender Pool statt Pakete: eine langsame Kanzleiseite hält nicht neun andere auf
+  let nextCompany = 0;
+  let done = 0;
+  await Promise.all(Array.from({ length: 10 }, async () => {
+    while (nextCompany < companies.length) {
+      const c = companies[nextCompany++];
       try {
-        const list = await withTimeout(c.ats.type === 'html' ? listHtml(c, store) : listCompany(c), 90_000);
+        const list = await withTimeout(c.ats.type === 'html' ? listHtml(c, store) : listCompany(c), 45_000);
         jobs.push(...list.map((job) => ({ job, company: c })));
         report.bySource[c.ats.type] = (report.bySource[c.ats.type] ?? 0) + list.length;
       } catch (e) {
         report.errors.push(`${c.name} (${c.ats.type}): ${(e as Error).message.slice(0, 120)}`);
       }
-    }));
-  }
+      if (++done % 25 === 0) log(`… ${done}/${companies.length} Firmen abgefragt`);
+    }
+  }));
   report.fetched = jobs.length;
 
   const calibration = (await store.recentFeedback(15)).map((f) => `${f.feedback === 'gut' ? '👍' : '👎'} ${f.title} (${f.company})`).join('\n');

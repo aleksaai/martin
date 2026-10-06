@@ -33,10 +33,10 @@ async function sendCard(chatId: string, j: StoredJob, ref: string) {
     text: card(j),
     parse_mode: 'HTML',
     link_preview_options: { is_disabled: true },
+    // Zwei Knöpfe: Bewerben zählt als "passt" (setzt das Feedback in prepareApplication), 👎 lernt das Gegenteil
     reply_markup: { inline_keyboard: [[
-      { text: '👍 Passt', callback_data: `gut:${ref}` },
-      { text: '👎 Passt nicht', callback_data: `schlecht:${ref}` },
       { text: '📨 Bewerben', callback_data: `bew:${ref}` },
+      { text: '👎 Passt nicht', callback_data: `schlecht:${ref}` },
     ]] },
   }).catch((e) => console.error(e.message));
 }
@@ -71,7 +71,7 @@ export async function broadcast(store: Store, text: string) {
 
 const HELP = [
   'Ich suche mehrmals am Tag nach Werkstudentenstellen für dich: remote in Deutschland oder vor Ort/hybrid rund um Köln.',
-  'Neue passende Stellen schicke ich dir sofort. Mit 👍/👎 lerne ich, was dir gefällt.',
+  'Neue passende Stellen schicke ich dir sofort. Mit 📨 Bewerben und 👎 Passt nicht lerne ich, was dir gefällt.',
   '📨 Bewerben schreibt dir ein Anschreiben (Text + PDF), schickt deinen Lebenslauf mit und füllt auf Wunsch das Bewerbungsformular aus. Abgeschickt wird nur, wenn du auf Absenden tippst.',
   'Antwortest du auf ein Anschreiben mit deiner eigenen Fassung, lerne ich deinen Stil.',
   '',

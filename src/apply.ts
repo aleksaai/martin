@@ -225,6 +225,7 @@ Regeln:
 - "check": IDs von Radio-Buttons oder Checkboxen, die eine Sachfrage beantworten (z.B. Anrede, Studierender ja), nur wenn die Antwort sicher aus seinen Daten folgt.
 - "consent": IDs von Einwilligungs-Checkboxen (Datenschutz, Speicherung, Talentpool nur wenn Pflicht). NICHT in "check" aufnehmen.
 - "offen": KURZE deutsche Bezeichnung (höchstens 4 Wörter, z.B. "Gehaltswunsch", "Starttermin", "Wochenstunden", "Arbeitstage", "Vollzeitstudium ja/nein") jeder Angabe, die du NICHT sicher beantworten kannst (z.B. Gehaltsvorstellung, frühester Start, Wochenstunden, Staatsangehörigkeit/Arbeitserlaubnis, Notendurchschnitt, wie er auf die Stelle aufmerksam wurde). Raten ist verboten. Freiwillige unklare Felder einfach leer lassen.
+- Felder mit Schlüssel "..._nur_wenn_pflicht" (Geburtsdatum, Geburtsort) nur ausfüllen, wenn das Feld Pflicht ist. "Vollzeitstudium/eingeschrieben?" = Ja (Vollzeitstudierender laut Bescheinigung).
 - Feld "Titel" meint einen akademischen Titel (Dr., Prof.): leer lassen. "Wirtschaftsjurist (LL.B.)" ist KEIN Titel.
 - Freitextfragen nur beantworten, wenn die Antwort sicher aus den Daten folgt; sonst in "offen" aufnehmen, auch wenn sie freiwillig sind, sofern sie für die Bewerbung wichtig wirken (Stunden, Wochentage, Starttermin, Gehalt, Vollzeitstudium).
 - Felder wie Suche, Newsletter, Login, Passwort, Konto anlegen: ignorieren.

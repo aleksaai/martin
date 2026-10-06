@@ -10,7 +10,8 @@ Karriere nützen (z.B. Steuer, Regulatorik, Einkauf mit Vertragsbezug, HR mit Ar
 Kein reiner Aushilfsjob ohne Karrierebezug (Gastronomie, Verkauf, Lager, Callcenter).
 
 ## Ausbildung
-- seit 09/2025: Jurastudium mit Ziel Erste Juristische Prüfung (Staatsexamen), FernUniversität in Hagen (Fernstudium, daher zeitlich flexibel)
+- seit 09/2025: Jurastudium mit Ziel Erste Juristische Prüfung (Staatsexamen), FernUniversität in Hagen (Fernstudium, daher zeitlich flexibel).
+  Laut Immatrikulationsbescheinigung WS 2026/27: ordentlich eingeschrieben als **Vollzeitstudierender**, 3. Fachsemester, 8. Hochschulsemester.
 - 09/2022 bis 08/2025: LL.B. Wirtschaftsrecht, Fachhochschule Aachen. Schwerpunkt Compliance und regulatorische Fragestellungen.
   Bachelorarbeit: Pflichten und Haftungsrisiken des Geldwäschebeauftragten in Kreditinstituten sowie die künftige europäische
   Geldwäschegesetzgebung (Risikoanalysen, interne Sicherungsmaßnahmen, Verdachtsmeldungen, regulatorische Anforderungen).

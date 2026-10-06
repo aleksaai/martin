@@ -140,9 +140,10 @@ export async function materialize(store: Store): Promise<Record<string, string[]
     writeFileSync(path, data);
     (out[d.kind] ??= []).push(path);
   }
-  if (!out.lebenslauf) {
-    const repoCv = new URL('../data/docs/lebenslauf.pdf', import.meta.url).pathname;
-    if (existsSync(repoCv)) out.lebenslauf = [repoCv];
+  // Startpaket im Repo, solange Martin nichts Neueres geschickt hat
+  for (const kind of ['lebenslauf', 'immatrikulation']) {
+    const repoDoc = new URL(`../data/docs/${kind}.pdf`, import.meta.url).pathname;
+    if (!out[kind] && existsSync(repoDoc)) out[kind] = [repoDoc];
   }
   // „weitere Unterlagen“: nur echte Bewerbungsunterlagen (Immatrikulation + Zeugnisse), nie „sonstiges“
   out.weitere = [...(out.immatrikulation ?? []), ...(out.zeugnis ?? [])];
@@ -153,5 +154,6 @@ export async function materialize(store: Store): Promise<Record<string, string[]
 /** Kurzliste für den Chat-Agenten. */
 export async function documentList(store: Store): Promise<string> {
   const docs = (await store.listDocuments()).filter((d) => d.kind !== 'wartet');
-  return docs.length ? docs.map((d) => `${KINDS[d.kind] ?? d.kind}: ${d.filename.split('|')[0]}`).join('; ') : 'nur der Lebenslauf aus dem Start-Paket';
+  const base = 'Startpaket: Lebenslauf, Immatrikulationsbescheinigung WS 2026/27 (Vollzeit, 3. Fachsemester)';
+  return docs.length ? `${base}; von Martin geschickt: ${docs.map((d) => `${KINDS[d.kind] ?? d.kind}: ${d.filename.split('|')[0]}`).join('; ')}` : base;
 }

@@ -67,6 +67,7 @@ export async function runOnce(store: Store, log = console.log): Promise<RunRepor
   }));
   report.fetched = jobs.length;
 
+  const facts = (await store.kvGet('answers')) ?? '';
   const calibration = (await store.recentFeedback(15)).map((f) => `${f.feedback === 'gut' ? '👍' : '👎'} ${f.title} (${f.company})`).join('\n');
 
   // Innerhalb eines Laufs doppelte Stellen (z.B. mehrere BA-Suchbegriffe) nur einmal prüfen
@@ -108,7 +109,7 @@ export async function runOnce(store: Store, log = console.log): Promise<RunRepor
 
     const placeText = place.distance !== null ? `${place.label} (${place.distance} km von Erftstadt)` : place.label;
     try {
-      const v = await scoreJob(job, placeText, calibration);
+      const v = await scoreJob(job, placeText, calibration, facts);
       report.scored++;
       // Weiter weg als MAX_KM zählt nur, wenn die Stelle wirklich vollremote ist
       const tooFar = place.distance !== null && place.distance > cfg.maxKm && v.mode !== 'remote';

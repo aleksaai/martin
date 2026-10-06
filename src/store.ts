@@ -9,12 +9,18 @@ export interface Subscriber { chat_id: string; name: string | null; paused: bool
 
 export interface Application {
   job_id: string;
-  status: 'entwurf' | 'beworben' | 'einladung' | 'absage' | 'zusage';
+  status: 'entwurf' | 'beworben' | 'einladung' | 'absage' | 'zusage' | 'zurueckgezogen';
   letter: string | null;
   applied_at: string | null;
   followup_at: string | null;
   followups: number;
+  /** Wie beworben: adolf (Formular), mail, portal, linkedin, sonstiges */
+  channel?: string | null;
+  /** Freitext, z.B. Absagegrund oder Gesprächsnotiz */
+  notes?: string | null;
 }
+
+export type ApplicationRow = Application & { title: string; company: string; source: string };
 
 export interface Store {
   init(): Promise<void>;
@@ -34,6 +40,11 @@ export interface Store {
   upsertApplication(a: Partial<Application> & { job_id: string }): Promise<void>;
   dueFollowups(): Promise<Application[]>;
   applicationsByStatus(): Promise<Record<string, number>>;
+  listApplications(): Promise<ApplicationRow[]>;
+  /** Stellen nach Firma oder Titel finden (für "hab mich bei X beworben"). */
+  findJobs(query: string, limit: number): Promise<StoredJob[]>;
+  /** Gemeldete Treffer ohne Reaktion (kein 👎, keine Bewerbung) seit mindestens `hours` Stunden. */
+  undecided(hours: number, limit: number): Promise<StoredJob[]>;
   addLetterExample(text: string): Promise<void>;
   letterExamples(n: number): Promise<string[]>;
   kvGet(key: string): Promise<string | null>;
@@ -62,6 +73,8 @@ class PgStore implements Store {
         job_id text primary key, status text not null default 'entwurf', letter text,
         applied_at timestamptz, followup_at timestamptz, followups int not null default 0
       );
+      alter table applications add column if not exists channel text;
+      alter table applications add column if not exists notes text;
       create table if not exists letter_examples (id serial primary key, text text not null, created_at timestamptz not null default now());
     `);
   }
@@ -121,9 +134,9 @@ class PgStore implements Store {
     const cur = (await this.getApplication(a.job_id)) ?? { job_id: a.job_id, status: 'entwurf', letter: null, applied_at: null, followup_at: null, followups: 0 };
     const n = { ...cur, ...a };
     await this.pool.query(
-      `insert into applications (job_id, status, letter, applied_at, followup_at, followups) values ($1,$2,$3,$4,$5,$6)
-       on conflict (job_id) do update set status = $2, letter = $3, applied_at = $4, followup_at = $5, followups = $6`,
-      [n.job_id, n.status, n.letter, n.applied_at, n.followup_at, n.followups]);
+      `insert into applications (job_id, status, letter, applied_at, followup_at, followups, channel, notes) values ($1,$2,$3,$4,$5,$6,$7,$8)
+       on conflict (job_id) do update set status = $2, letter = $3, applied_at = $4, followup_at = $5, followups = $6, channel = $7, notes = $8`,
+      [n.job_id, n.status, n.letter, n.applied_at, n.followup_at, n.followups, n.channel ?? null, n.notes ?? null]);
   }
   async dueFollowups() {
     return (await this.pool.query(`select * from applications where status = 'beworben' and followup_at <= now()`)).rows as Application[];
@@ -132,6 +145,23 @@ class PgStore implements Store {
     const out: Record<string, number> = {};
     for (const r of (await this.pool.query('select status, count(*)::int as n from applications group by status')).rows) out[r.status] = r.n;
     return out;
+  }
+  async listApplications() {
+    const r = await this.pool.query(`select a.*, j.title, j.company, j.source from applications a join jobs j on j.id = a.job_id order by coalesce(a.applied_at, j.first_seen) desc`);
+    return r.rows as ApplicationRow[];
+  }
+  async findJobs(query: string, limit: number) {
+    const r = await this.pool.query(
+      `select * from jobs where status in ('match','manuell','low') and (company ilike $1 or title ilike $1) order by notified_at desc nulls last, first_seen desc limit $2`,
+      [`%${query}%`, limit]);
+    return r.rows as StoredJob[];
+  }
+  async undecided(hours: number, limit: number) {
+    const r = await this.pool.query(
+      `select j.* from jobs j left join applications a on a.job_id = j.id
+       where j.status = 'match' and j.notified_at is not null and j.notified_at < now() - make_interval(hours => $1)
+         and j.feedback is null and a.job_id is null order by j.score desc limit $2`, [hours, limit]);
+    return r.rows as StoredJob[];
   }
   async addLetterExample(text: string) {
     await this.pool.query('insert into letter_examples (text) values ($1)', [text]);
@@ -220,6 +250,24 @@ class FileStore implements Store {
     const out: Record<string, number> = {};
     for (const a of Object.values(this.data.applications ?? {})) out[a.status] = (out[a.status] ?? 0) + 1;
     return out;
+  }
+  async listApplications() {
+    return Object.values(this.data.applications ?? {}).map((a) => {
+      const j = this.data.jobs[a.job_id];
+      return { ...a, title: j?.title ?? '?', company: j?.company ?? '?', source: j?.source ?? '?' };
+    }).sort((a, b) => (b.applied_at ?? '').localeCompare(a.applied_at ?? ''));
+  }
+  async findJobs(query: string, limit: number) {
+    const q = query.toLowerCase();
+    return Object.values(this.data.jobs)
+      .filter((j) => ['match', 'manuell', 'low'].includes(j.status) && (j.company.toLowerCase().includes(q) || j.title.toLowerCase().includes(q)))
+      .sort((a, b) => (b.notified_at ?? '').localeCompare(a.notified_at ?? '')).slice(0, limit);
+  }
+  async undecided(hours: number, limit: number) {
+    const before = Date.now() - hours * 3_600_000;
+    return Object.values(this.data.jobs)
+      .filter((j) => j.status === 'match' && j.notified_at && Date.parse(j.notified_at) < before && !j.feedback && !this.data.applications?.[j.id])
+      .sort((a, b) => (b.score ?? 0) - (a.score ?? 0)).slice(0, limit);
   }
   async addLetterExample(text: string) { (this.data.letters ??= []).push(text); await this.flush(); }
   async letterExamples(n: number) { return (this.data.letters ?? []).slice(-n).reverse(); }

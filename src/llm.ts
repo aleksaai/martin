@@ -31,7 +31,7 @@ oder verlangt Sprachen/Qualifikationen, die er nicht hat. Sonst true.
 
 Format: {"score": 8, "machbar": true, "mode": "hybrid", "reason": "..."}`;
 
-export async function scoreJob(job: RawJob, place: string, calibration: string): Promise<Verdict> {
+export async function scoreJob(job: RawJob, place: string, calibration: string, facts = ''): Promise<Verdict> {
   const text = [
     `Titel: ${job.title}`,
     `Arbeitgeber: ${job.company}`,
@@ -39,6 +39,7 @@ export async function scoreJob(job: RawJob, place: string, calibration: string):
     `Modus laut Quelle: ${job.mode}`,
     `Beschreibung:\n${(job.description ?? '(keine Beschreibung verfügbar, nur nach Titel urteilen)').slice(0, 6000)}`,
     calibration ? `\nSo hat Martin bisherige Vorschläge bewertet (zur Kalibrierung):\n${calibration}` : '',
+    facts ? `\nMartins gespeicherte Angaben und Erkenntnisse (berücksichtigen):\n${facts}` : '',
   ].join('\n');
   const res = await client.messages.create({
     model: cfg.scoreModel,

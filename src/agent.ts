@@ -7,6 +7,7 @@ import { cfg } from './config.ts';
 import { PROFILE } from './llm.ts';
 import type { Store } from './store.ts';
 import { tg } from './tg.ts';
+import { overview, recordApplication, updateApplication } from './tracking.ts';
 
 const client = new Anthropic({ apiKey: cfg.anthropicKey });
 const HISTORY = 24;
@@ -42,6 +43,29 @@ const TOOLS: Anthropic.Tool[] = [
     input_schema: { type: 'object' as const, properties: { benutzer: { type: 'string' }, passwort: { type: 'string' } }, required: ['benutzer', 'passwort'] },
   },
   {
+    name: 'bewerbung_eintragen',
+    description: 'Trägt eine Bewerbung ins Tracking ein, egal wo Martin sich beworben hat (über Adolf, per Mail, Firmenportal, LinkedIn ...). Für "hab mich bei X beworben". Ist es die aktuelle Bewerbung, aktuelle_stelle=true setzen.',
+    input_schema: { type: 'object' as const, properties: {
+      firma: { type: 'string' }, stelle: { type: 'string' },
+      kanal: { type: 'string', enum: ['adolf', 'mail', 'portal', 'linkedin', 'sonstiges'] },
+      datum: { type: 'string', description: 'ISO-Datum, falls nicht heute' }, link: { type: 'string' }, notiz: { type: 'string' },
+      aktuelle_stelle: { type: 'boolean' },
+    }, required: ['firma', 'kanal'] },
+  },
+  {
+    name: 'bewerbung_aktualisieren',
+    description: 'Setzt den Status einer eingetragenen Bewerbung: einladung, absage (mit Grund in notiz, falls bekannt), zusage, zurueckgezogen.',
+    input_schema: { type: 'object' as const, properties: {
+      suche: { type: 'string', description: 'Firma oder Stellentitel' },
+      status: { type: 'string', enum: ['beworben', 'einladung', 'absage', 'zusage', 'zurueckgezogen'] }, notiz: { type: 'string' },
+    }, required: ['suche', 'status'] },
+  },
+  {
+    name: 'bewerbungen_uebersicht',
+    description: 'Zahlen und Liste aller Bewerbungen (Lagebericht), inkl. Kanäle, Quote und Absagegründe.',
+    input_schema: { type: 'object' as const, properties: {} },
+  },
+  {
     name: 'merken',
     description: 'Speichert eine Angabe dauerhaft in Martins Profil-Datenbank (fließt in alle künftigen Anschreiben und Formulare ein). NUR aufrufen, wenn Martin ausdrücklich zugestimmt hat.',
     input_schema: { type: 'object' as const, properties: { fakt: { type: 'string', description: 'Ein Satz, z.B. "Frühester Starttermin: 1.11.2026"' } }, required: ['fakt'] },
@@ -54,10 +78,17 @@ const TOOLS: Anthropic.Tool[] = [
 ];
 
 function system(context: string): string {
-  return `Du bist Martins Bewerbungs-Assistent im Telegram-Chat. Martin sucht eine Werkstudentenstelle im Wirtschaftsrecht.
+  return `Du bist Adolf, Martins Bewerbungs-Assistent im Telegram-Chat. Martin sucht eine Werkstudentenstelle im Wirtschaftsrecht.
 
-Schreib wie ein Mensch im Messenger: kurz, meist ein bis drei Sätze, du-Form, Deutsch, kein Markdown, keine Überschriften,
-Listen nur wenn es wirklich mehrere Punkte sind, keine Floskeln, keine Gedankenstriche. Ergebnis zuerst.
+Persona: ein Bundeswehr-Ausbilder (Feldwebel) als Bewerbungscoach. Du nennst Martin „Kamerad“. Kurz, knackig, zackig, im
+Befehlston, gern mit Ausbilder-Sprüchen („Keine Ausreden, Kamerad.“, „Abmarsch!“, „Meldung machen!“), manchmal ruppig, aber am
+Ende immer hilfreich, lösungsorientiert und auf seiner Seite. Bei Absagen oder Frust: aufbauen, nicht runtermachen.
+Absolute Grenze: keinerlei Bezüge auf Nationalsozialismus, Wehrmacht, Hitler, NS-Begriffe, -Parolen, -Grüße oder -Symbole,
+auch nicht als Witz, auch nicht wegen deines Namens. Keine Beleidigungen von Gruppen. Die Persona gilt NUR im Chat mit Martin:
+Anschreiben, Formulare und alles an Arbeitgeber bleiben sachlich in Martins Stil.
+
+Schreib wie im Messenger: kurz, meist ein bis drei Sätze, Deutsch, kein Markdown, keine Überschriften, Listen nur wenn es
+wirklich mehrere Punkte sind, keine Gedankenstriche. Ergebnis zuerst.
 
 Was du tun kannst:
 - Nach formular_oeffnen/formular_ergaenzen hat Martin schon den Screenshot samt Text, was fehlt. Wiederhole das nicht.
@@ -74,11 +105,20 @@ Was du tun kannst:
   Bei Gehaltsfragen: Spanne nennen, eine konkrete Empfehlung mit einem Satz Begründung. Formulare fragen oft Jahresbrutto:
   Stundenlohn × Wochenstunden × 52. Nenne nur Zahlen, die du in der Recherche wirklich gefunden hast, Quelle in drei Wörtern.
 - Einschätzungen und Tipps zu Stellen, Firmen und Bewerbungen geben.
+- Bewerbungs-Tracking: Sagt Martin, dass er sich irgendwo beworben hat (auch selbst, per Mail, LinkedIn), trag es mit
+  bewerbung_eintragen ein. Einladung, Absage (Grund erfragen und notieren), Zusage: bewerbung_aktualisieren.
+  „Wie läuft's?“, „Lagebericht“, „wie viele Bewerbungen“: bewerbungen_uebersicht und knapp zusammenfassen, gern mit Ansporn.
+  Siehst du ein Muster bei Absagen, sprich es an und schlag konkret was vor.
 
 Bewerberportale mit Konto (Workday, SuccessFactors, eigene Portale): Das System erkennt Login-Seiten selbst und schickt Martin
 eine Anleitung mit vorgeschlagenem Passwort. Hat er schon ein Konto und schreibt dir Zugangsdaten, nimm konto_hinterlegen und
 danach formular_oeffnen. Wiederhole Passwörter nie im Text. Mehrseitige Formulare: formular_weiter.
 Wenn ein Werkzeug schon geantwortet hat und du nichts Neues zu sagen hast, antworte genau mit [STILL].
+
+Ehrlichkeit: Behaupte nie, etwas eingetragen, gespeichert, geändert oder ausgefüllt zu haben, ohne das Werkzeug in dieser
+Antwort wirklich aufgerufen zu haben. Versprich nichts, was du nicht kannst. Stellen suchen kannst du im Chat nicht: das läuft
+automatisch um 7, 12 und 17 Uhr, sofort mit /suche. Erkenntnisse für die Stellenauswahl (z.B. „Großkanzleien verlangen oft
+das erste Staatsexamen“) kannst du mit merken festhalten, dann berücksichtigt die Bewertung das künftig.
 
 Grenzen: Abschicken kannst du nicht, das macht Martin mit dem Knopf „Absenden“ unter dem Screenshot. Erfinde nichts über Martin.
 Wenn kein Formular offen ist und er Angaben macht, biete an, sie dir zu merken.
@@ -134,6 +174,15 @@ async function runTool(store: Store, chatId: string, name: string, input: any, c
       if (ctx.messageId) await tg('deleteMessage', { chat_id: chatId, message_id: ctx.messageId }).catch(() => {});
       return portal ? `Zugang für ${portal} gespeichert, Martins Nachricht ist gelöscht. Jetzt formular_oeffnen aufrufen.` : 'Kein Portal bekannt, für das ein Konto gebraucht wird.';
     }
+    case 'bewerbung_eintragen': {
+      const jobId = input.aktuelle_stelle ? (await store.kvGet(`active_job:${chatId}`)) ?? undefined : undefined;
+      const id = await recordApplication(store, { firma: input.firma, stelle: input.stelle ?? '', kanal: input.kanal, datum: input.datum, link: input.link, notiz: input.notiz, jobId });
+      return `Eingetragen (${id.startsWith('manuell:') ? 'neue Stelle angelegt' : 'mit bekannter Stelle verknüpft'}). In 10 Tagen fragt das System automatisch nach.`;
+    }
+    case 'bewerbung_aktualisieren':
+      return updateApplication(store, String(input.suche ?? ''), String(input.status ?? ''), input.notiz);
+    case 'bewerbungen_uebersicht':
+      return overview(store);
     case 'merken': {
       const prev = (await store.kvGet('answers')) ?? '';
       const fakt = String(input.fakt ?? '').trim();

@@ -20,7 +20,8 @@ export interface Company {
   verified?: boolean;
 }
 
-export type JobStatus = 'skipped' | 'low' | 'match';
+// manuell = Stelle, die Martin selbst gefunden hat (z.B. LinkedIn) und Adolf nur zum Tracking meldet
+export type JobStatus = 'skipped' | 'low' | 'match' | 'manuell';
 
 export interface StoredJob {
   id: string;

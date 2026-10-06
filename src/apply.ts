@@ -350,12 +350,12 @@ async function fillAndReport(store: Store, s: Session): Promise<FormResult> {
   const docs = done.filter((d) => d.startsWith('📎')).map((d) => d.slice(3));
   const captcha = (await s.page.locator('iframe[src*="recaptcha"], iframe[src*="hcaptcha"], iframe[src*="turnstile"]').count()) > 0;
   // Kurz und menschlich: was drin ist, sieht Martin auf dem Bild. Nur sagen, was fehlt.
-  const uploaded = docs.length === 2 ? 'beide PDFs sind hochgeladen' : docs.length === 1 ? `${docs[0] === 'lebenslauf' ? 'der Lebenslauf' : 'das Anschreiben'} ist hochgeladen` : 'PDFs konnte ich nicht hochladen, das müsstest du selbst machen';
+  const uploaded = docs.length === 2 ? 'beide PDFs sind drin' : docs.length === 1 ? `${docs[0] === 'lebenslauf' ? 'Lebenslauf' : 'Anschreiben'} ist drin` : 'PDFs gingen nicht rein, die musst du selbst hochladen';
   const text = [
-    `Das Formular bei ${esc(s.job.company)} ist ausgefüllt, ${uploaded}.`,
+    `Formular bei ${esc(s.job.company)} steht, ${uploaded}.`,
     s.plan.offen.length
-      ? `Mir fehlt noch: ${esc(s.plan.offen.join(', '))}. Schreib's mir einfach hier in den Chat. Wenn du beim Gehalt unsicher bist, frag mich, was üblich ist.`
-      : docs.includes('lebenslauf') ? 'Schau kurz drüber. Passt alles, tipp auf Absenden.' : 'Absenden biete ich erst an, wenn der Lebenslauf drin ist. Lad ihn bitte selbst hoch über „Selbst öffnen“.',
+      ? `Es fehlt noch: ${esc(s.plan.offen.join(', '))}. Meldung hier im Chat, Kamerad. Beim Gehalt unsicher? Frag mich.`
+      : docs.includes('lebenslauf') ? 'Kontrollblick drauf. Passt alles: Absenden.' : 'Absenden gibt es erst mit Lebenslauf. Lad ihn über „Selbst öffnen“ hoch.',
     captcha ? 'Die Seite hat eine Captcha-Prüfung, das Absenden könnte deshalb scheitern.' : '',
   ].filter(Boolean).join('\n\n');
   // Absenden nur, wenn nichts offen ist UND der Lebenslauf wirklich drin ist (sonst ist es vermutlich das falsche Formular)
@@ -454,7 +454,7 @@ export async function refillForm(store: Store, chatId: string, angaben: string):
 
 export async function startForm(store: Store, chatId: string, job: StoredJob, ref: string, extra = ''): Promise<FormResult | null> {
   close(ref);
-  const wait = await tg('sendMessage', { chat_id: chatId, text: `⏳ Öffne das Bewerbungsformular bei ${job.company} und fülle es aus, das dauert etwa eine Minute …` }).catch(() => null);
+  const wait = await tg('sendMessage', { chat_id: chatId, text: `⏳ Rücke aus zum Bewerbungsformular bei ${job.company}, dauert etwa eine Minute …` }).catch(() => null);
   const dropWait = () => (wait ? tg('deleteMessage', { chat_id: chatId, message_id: wait.message_id }).catch(() => {}) : undefined);
   let applyUrl = (await store.kvGet(`apply_url:${job.id}`)) ?? job.url;
   // Nie auf Seiten der Arbeitsagentur (Captcha) oder Konto-Portalen ausfüllen: erst die Original-Anzeige suchen

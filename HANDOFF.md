@@ -38,6 +38,13 @@
   Getestet bis zur Konto-Anleitung bei EY (SuccessFactors `EYHRISPRD1`). Login + Formular nach dem Login noch NICHT echt getestet.
   Mehrseitige Formulare: Werkzeug `formular_weiter`. Außerdem: 👀-Reaktion auf jede Nachricht, keine zweite Chat-Nachricht nach Bild/PDF
   (`SENDS_ITSELF`, `[STILL]`), Knopf „🤖 Mit diesem Anschreiben bewerben“ unter jeder überarbeiteten Fassung.
+- **Tracking + Persona (06.10. abends, `src/tracking.ts`):** Bewerbungen aus jedem Kanal (adolf/mail/portal/linkedin/sonstiges) per Chat
+  („hab mich bei X beworben“) → `recordApplication` verknüpft mit bekannter Stelle oder legt Stelle mit `status='manuell'` an.
+  `applications` hat neu `channel` + `notes` (Absagegründe). `/bewerbungen` und Chat „Lagebericht“ → `overview` (Zahlen, Quote, Kanäle, Liste).
+  `nudgeUndecided`: gemeldete Treffer ohne 👎/Bewerbung nach 24 h einmal gebündelt nachfassen (`kv nudged:<id>`), läuft mit jedem Suchlauf.
+  **Persona „Adolf“:** Bundeswehr-Ausbilder, sagt „Kamerad“, zackig, mal ruppig, aber hilfreich; harte Regel gegen jede NS-Anspielung.
+  Gilt nur im Chat und in Bot-Texten, Anschreiben/Formulare bleiben in Martins Stil. Gemerkte Erkenntnisse (`kv answers`) fließen auch in die Stellenbewertung.
+  Railway-Variable `VAULT_KEY` ist seit 06.10. gesetzt (Aleksa).
 - Offen: erster Railway-Build mit Playwright prüfen, Martin anmelden, Martin nennt einmal Starttermin/Stunden (Antwort auf einen Formular-Screenshot
   landet in `kv.answers` und fließt danach auch in die Anschreiben), Immatrikulationsbescheinigung als `data/docs/immatrikulation.pdf`.
 

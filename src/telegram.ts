@@ -1,7 +1,8 @@
 // Telegram per Long Polling: kein Webhook, keine öffentliche Adresse nötig.
 import { chat } from './agent.ts';
 import { accountCreated, cancelForm, startForm, submitForm } from './apply.ts';
-import { handleLetterReply, handleOutcome, listApplications, markApplied, prepareApplication } from './bewerbung.ts';
+import { handleLetterReply, handleOutcome, markApplied, prepareApplication } from './bewerbung.ts';
+import { overview } from './tracking.ts';
 import { cfg } from './config.ts';
 import type { Store } from './store.ts';
 import { esc, tg } from './tg.ts';
@@ -71,11 +72,11 @@ export async function broadcast(store: Store, text: string) {
 }
 
 const HELP = [
-  'Ich suche dreimal am Tag Werkstudentenstellen für dich, remote oder rund um Köln, und schicke dir, was passt.',
-  'Tipp auf 📨 Bewerben, dann bekommst du ein fertiges Anschreiben und ich fülle auf Wunsch das Bewerbungsformular für dich aus. Abgeschickt wird nur, wenn du zustimmst.',
-  'Ansonsten schreib mir einfach ganz normal: Angaben fürs Formular, Fragen zum Gehalt, Änderungen am Anschreiben.',
+  'Melde mich zum Dienst, Kamerad. Ich suche dreimal täglich Werkstudentenstellen für dich, remote oder rund um Köln, und melde, was taugt.',
+  '📨 Bewerben: Ich schreibe das Anschreiben und fülle auf Wunsch das Formular aus. Abgeschickt wird nur auf dein Kommando.',
+  'Sonst einfach schreiben: Angaben fürs Formular, Gehaltsfragen, Änderungen am Anschreiben, oder „hab mich bei X beworben“, dann trage ich es ein.',
   '',
-  '/suche  jetzt suchen  ·  /bewerbungen  dein Stand  ·  /pause  ·  /weiter',
+  '/suche  jetzt suchen  ·  /bewerbungen  Lagebericht  ·  /pause  ·  /weiter',
 ].join('\n');
 
 export function startBot(store: Store, triggerRun: () => Promise<string>) {
@@ -100,7 +101,7 @@ export function startBot(store: Store, triggerRun: () => Promise<string>) {
   void tg('setMyCommands', { commands: [
     { command: 'suche', description: 'Jetzt sofort suchen' },
     { command: 'status', description: 'Was bisher gefunden wurde' },
-    { command: 'bewerbungen', description: 'Stand deiner Bewerbungen' },
+    { command: 'bewerbungen', description: 'Lagebericht deiner Bewerbungen' },
     { command: 'pause', description: 'Keine Meldungen mehr' },
     { command: 'weiter', description: 'Meldungen wieder an' },
   ] }).catch(() => {});
@@ -120,7 +121,7 @@ async function handle(u: any, store: Store, triggerRun: () => Promise<string>) {
       const jobId = await store.kvGet(`ref:${ref}`);
       const result = await submitForm(store, chatId, ref);
       const job = jobId ? await store.getJob(jobId) : null;
-      if (result === 'ok' && job) await markApplied(store, chatId, job, ref);
+      if (result === 'ok' && job) await markApplied(store, chatId, job, ref, 'adolf');
       else if (result === 'unklar') await tg('sendMessage', { chat_id: chatId, text: 'Wenn es geklappt hat, tipp hier:', reply_markup: { inline_keyboard: [[{ text: '✅ Ich habe mich beworben', callback_data: `ok:${ref}` }]] } });
       return;
     }
@@ -208,7 +209,7 @@ async function handle(u: any, store: Store, triggerRun: () => Promise<string>) {
   }
 
   if (text.startsWith('/bewerbungen')) {
-    await tg('sendMessage', { chat_id: chatId, text: await listApplications(store) });
+    await tg('sendMessage', { chat_id: chatId, text: await overview(store) });
   } else if (text.startsWith('/suche')) {
     await tg('sendMessage', { chat_id: chatId, text: 'Ich suche jetzt, das dauert ein paar Minuten.' });
     await tg('sendMessage', { chat_id: chatId, text: await triggerRun() });

@@ -124,11 +124,11 @@ export async function handleLetterReply(store: Store, chatId: string, replyToId:
   return true;
 }
 
-export async function markApplied(store: Store, chatId: string, job: StoredJob, ref: string) {
-  await store.upsertApplication({ job_id: job.id, status: 'beworben', applied_at: new Date().toISOString(), followup_at: new Date(Date.now() + 10 * DAY).toISOString() });
+export async function markApplied(store: Store, chatId: string, job: StoredJob, ref: string, channel = 'manuell') {
+  await store.upsertApplication({ job_id: job.id, status: 'beworben', applied_at: new Date().toISOString(), followup_at: new Date(Date.now() + 10 * DAY).toISOString(), channel });
   await tg('sendMessage', {
     chat_id: chatId,
-    text: `Notiert: Bewerbung bei ${job.company}. Ich frage in 10 Tagen nach. Kommt vorher eine Antwort, tipp hier auf den passenden Knopf.`,
+    text: `Eingetragen, Kamerad: Bewerbung bei ${job.company}. In 10 Tagen erstatte ich Meldung, ob sich was rührt. Kommt vorher Antwort, Knopf drücken oder mir schreiben.`,
     reply_markup: { inline_keyboard: [[button('📅 Einladung', `ein:${ref}`), button('❌ Absage', `abs:${ref}`)]] },
   });
 }
@@ -144,7 +144,7 @@ export async function sendFollowups(store: Store, newRef: (jobId: string) => Pro
     for (const s of subs) {
       await tg('sendMessage', {
         chat_id: s.chat_id,
-        text: `Vor ${days} Tagen hast du dich bei ${job.company} beworben (${job.title}). Schon was gehört?`,
+        text: `Lagebericht, Kamerad: Vor ${days} Tagen Bewerbung bei ${job.company} (${job.title}). Schon Rückmeldung?`,
         reply_markup: { inline_keyboard: [[button('📅 Einladung', `ein:${ref}`), button('❌ Absage', `abs:${ref}`), button('⏳ Noch nichts', `nix:${ref}`)]] },
       }).catch(() => {});
     }
@@ -156,20 +156,13 @@ export async function sendFollowups(store: Store, newRef: (jobId: string) => Pro
 export async function handleOutcome(store: Store, chatId: string, job: StoredJob, action: 'ein' | 'abs' | 'nix') {
   if (action === 'ein') {
     await store.upsertApplication({ job_id: job.id, status: 'einladung', followup_at: null });
-    await tg('sendMessage', { chat_id: chatId, text: `Glückwunsch zur Einladung bei ${job.company}! Ich bereite dich vor, einen Moment.` });
+    await tg('sendMessage', { chat_id: chatId, text: `Einladung bei ${job.company}! Sauber, Kamerad. Jetzt wird vorbereitet, Einweisung folgt.` });
     await tg('sendChatAction', { chat_id: chatId, action: 'typing' });
     await tg('sendMessage', { chat_id: chatId, text: await interviewPrep(job) });
   } else if (action === 'abs') {
     await store.upsertApplication({ job_id: job.id, status: 'absage', followup_at: null });
-    await tg('sendMessage', { chat_id: chatId, text: 'Schade. Abgehakt, die nächsten Stellen kommen.' });
+    await tg('sendMessage', { chat_id: chatId, text: 'Absage. Abgehakt, Kopf hoch, weitermarschieren. Wenn du den Grund kennst, schreib ihn mir, dann lernen wir draus.' });
   } else {
-    await tg('sendMessage', { chat_id: chatId, text: 'Alles klar, ich frage in einer Woche nochmal.' });
+    await tg('sendMessage', { chat_id: chatId, text: 'Verstanden. In einer Woche frage ich wieder nach.' });
   }
-}
-
-export async function listApplications(store: Store): Promise<string> {
-  const by = await store.applicationsByStatus();
-  const label: Record<string, string> = { entwurf: 'vorbereitet', beworben: 'beworben', einladung: 'Einladung', absage: 'Absage', zusage: 'Zusage' };
-  const parts = Object.entries(by).map(([k, n]) => `${label[k] ?? k}: ${n}`);
-  return parts.length ? `Deine Bewerbungen\n${parts.join('\n')}` : 'Noch keine Bewerbungen. Tipp bei einer Stelle auf 📨 Bewerben.';
 }

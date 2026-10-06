@@ -3,6 +3,7 @@ import { cfg } from './config.ts';
 import { runOnce, type RunReport } from './run.ts';
 import { createStore } from './store.ts';
 import { sendFollowups } from './bewerbung.ts';
+import { nudgeUndecided } from './tracking.ts';
 import { broadcast, notifyPending, shortRef, startBot } from './telegram.ts';
 
 const store = createStore();
@@ -18,6 +19,7 @@ async function run(reason: string): Promise<RunReport> {
     await store.kvSet('last_run', new Date().toISOString());
     const sent = await notifyPending(store);
     await sendFollowups(store, (id) => shortRef(store, id)).catch((e) => console.error('Nachfragen:', e));
+    await nudgeUndecided(store, (id) => shortRef(store, id)).catch((e) => console.error('Nachhaken:', e));
     console.log(`Suchlauf fertig: ${r.fetched} abgerufen, ${r.fresh} neu, ${r.scored} bewertet, ${r.matches} Treffer, ${sent} gemeldet, ${r.errors.length} Fehler`);
     for (const e of r.errors) console.log('  Fehler:', e);
     return r;

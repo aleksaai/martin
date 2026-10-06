@@ -263,7 +263,7 @@ export async function handle(u: any, store: Store, triggerRun: () => Promise<str
       const replyTo = m.reply_to_message?.message_id;
       if (!observer && replyTo && (await handleLetterReply(store, chatId, replyTo, text))) return;
       // Alles, was kein Befehl ist, geht an den Chat-Assistenten (Formular ergänzen, Beratung, Gedächtnis, Konten)
-      await chat(store, chatId, text, m.message_id, observer);
+      await chat(store, chatId, text, m.message_id, observer, replyTo);
     } finally {
       await react(false);
     }

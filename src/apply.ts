@@ -224,13 +224,13 @@ Regeln:
 - "files": Datei-Felder. Lebenslauf/CV/Resume -> "lebenslauf", Anschreiben/Cover Letter/Motivationsschreiben -> "anschreiben", Immatrikulation/Studienbescheinigung -> "immatrikulation", Zeugnisse/Transcript -> "zeugnis", Foto/Bild -> "foto", „Weitere Dokumente/Unterlagen/Anlagen“ -> "weitere". Gibt es nur ein Datei-Feld für alle Unterlagen: "lebenslauf". Nicht vorhandenes Dokument weglassen.
 - "check": IDs von Radio-Buttons oder Checkboxen, die eine Sachfrage beantworten (z.B. Anrede, Studierender ja), nur wenn die Antwort sicher aus seinen Daten folgt.
 - "consent": IDs von Einwilligungs-Checkboxen (Datenschutz, Speicherung, Talentpool nur wenn Pflicht). NICHT in "check" aufnehmen.
-- "offen": KURZE deutsche Bezeichnung (höchstens 4 Wörter, z.B. "Gehaltswunsch", "Starttermin", "Wochenstunden", "Arbeitstage", "Vollzeitstudium ja/nein") jeder Angabe, die du NICHT sicher beantworten kannst (z.B. Gehaltsvorstellung, frühester Start, Wochenstunden, Staatsangehörigkeit/Arbeitserlaubnis, Notendurchschnitt, wie er auf die Stelle aufmerksam wurde). Raten ist verboten. Freiwillige unklare Felder einfach leer lassen.
+- "offen": Vollständige, verständliche Rückfragen direkt an Martin für jede Angabe, die du NICHT sicher beantworten kannst. Bewahre den konkreten Inhalt der Formularfrage, Einheiten (z.B. Jahresbrutto) und relevante Auswahlmöglichkeiten. Keine vagen Überschriften wie "Weitere Angaben (Ja/Nein)". Ist der Fragetext nicht erkennbar, sage ausdrücklich, welches Feld unlesbar ist; erfinde keine Frage. Bereits beantwortete Fragen nicht wiederholen. Starttermin und Verfügbarkeit nur dann getrennt fragen, wenn sie tatsächlich Unterschiedliches meinen. Frage nach jeder unbekannten Angabe (z.B. Gehaltsvorstellung, frühester Start, Wochenstunden, Staatsangehörigkeit/Arbeitserlaubnis, Notendurchschnitt, wie er auf die Stelle aufmerksam wurde). Raten ist verboten. Freiwillige unklare Felder einfach leer lassen.
 - Felder mit Schlüssel "..._nur_wenn_pflicht" (Geburtsdatum, Geburtsort) nur ausfüllen, wenn das Feld Pflicht ist. "Vollzeitstudium/eingeschrieben?" = Ja (Vollzeitstudierender laut Bescheinigung).
 - Feld "Titel" meint einen akademischen Titel (Dr., Prof.): leer lassen. "Wirtschaftsjurist (LL.B.)" ist KEIN Titel.
 - Freitextfragen nur beantworten, wenn die Antwort sicher aus den Daten folgt; sonst in "offen" aufnehmen, auch wenn sie freiwillig sind, sofern sie für die Bewerbung wichtig wirken (Stunden, Wochentage, Starttermin, Gehalt, Vollzeitstudium).
 - Felder wie Suche, Newsletter, Login, Passwort, Konto anlegen: ignorieren.
 
-Format: {"fill":[{"id":"f0_1","value":"Martin"}],"files":[{"id":"f0_7","doc":"lebenslauf"}],"check":[],"consent":["f0_9"],"offen":["Gehaltsvorstellung"]}`,
+Format: {"fill":[{"id":"f0_1","value":"Martin"}],"files":[{"id":"f0_7","doc":"lebenslauf"}],"check":[],"consent":["f0_9"],"offen":["Welches Jahresbruttogehalt möchtest du angeben?"]}`,
     messages: [{ role: 'user', content: `Stelle: ${job.title} bei ${job.company}\n\nFelder:\n${JSON.stringify(fields)}` }],
   });
   const raw = res.content.map((b) => (b.type === 'text' ? b.text : '')).join('');
@@ -357,15 +357,20 @@ async function fillAndReport(store: Store, s: Session): Promise<FormResult> {
   const text = [
     `Formular bei ${esc(s.job.company)} steht, ${uploaded}.`,
     s.plan.offen.length
-      ? `Es fehlt noch: ${esc(s.plan.offen.join(', '))}. Meldung hier im Chat, Kamerad. Beim Gehalt unsicher? Frag mich.`
-      : docs.includes('lebenslauf') ? 'Kontrollblick drauf. Passt alles: Absenden.' : 'Absenden gibt es erst mit Lebenslauf. Lad ihn über „Selbst öffnen“ hoch.',
+      ? 'Ich frage dich gleich nach den fehlenden Angaben. Antworte einfach hier im Chat, ich fülle für dich weiter aus.'
+      : docs.includes('lebenslauf') ? 'Kontrollblick drauf. Passt alles: Absenden.' : 'Der Lebenslauf-Upload hat nicht geklappt. Antworte hier, damit wir das klären können.',
     captcha ? 'Die Seite hat eine Captcha-Prüfung, das Absenden könnte deshalb scheitern.' : '',
   ].filter(Boolean).join('\n\n');
   // Absenden nur, wenn nichts offen ist UND der Lebenslauf wirklich drin ist (sonst ist es vermutlich das falsche Formular)
   const canSend = !s.plan.offen.length && docs.includes('lebenslauf');
-  const rows = [[...(canSend ? [button('✅ Absenden', `send:${s.ref}`)] : []), button('❌ Abbrechen', `stop:${s.ref}`)], [{ text: '🔗 Selbst öffnen', url: s.page.url() }]];
+  const rows = [[...(canSend ? [button('✅ Absenden', `send:${s.ref}`)] : []), button('❌ Abbrechen', `stop:${s.ref}`)], [{ text: '🔗 Im Browser neu ausfüllen', url: s.page.url() }]];
+  await store.kvSet(`form_draft:${s.chatId}:${s.job.id}`, JSON.stringify({ extra: s.extra, questions: s.plan.offen }));
   const msg = await screenshot(s, text, { inline_keyboard: rows });
   await store.kvSet(`form_msg:${s.chatId}:${msg.message_id}`, s.ref);
+  if (s.plan.offen.length) {
+    const question = await tg('sendMessage', { chat_id: s.chatId, text: `Kamerad, für ${s.job.company}:\n\n${s.plan.offen.slice(0, 2).join('\n\n')}\n\nAntworte in deinen Worten hier im Chat. Ich trage es ein und frage danach nur noch nach dem, was fehlt.`, reply_markup: { force_reply: true, selective: true } });
+    await store.kvSet(`form_msg:${s.chatId}:${question.message_id}`, s.ref);
+  }
   return { ok: true, offen: s.plan.offen, captcha };
 }
 
@@ -430,7 +435,8 @@ export async function saveOwnAccount(store: Store, chatId: string, username: str
 
 /** Mehrseitige Formulare (Workday, SuccessFactors): auf "Weiter" klicken und die nächste Seite ausfüllen. */
 export async function nextFormPage(store: Store, chatId: string): Promise<FormResult | null> {
-  const s = [...sessions.values()].reverse().find((x) => x.chatId === chatId);
+  const jobId = await store.kvGet(`active_job:${chatId}`);
+  const s = [...sessions.values()].reverse().find((x) => x.chatId === chatId && (!jobId || x.job.id === jobId));
   if (!s) return null;
   const btn = s.page.getByRole('button', { name: /^(weiter|nächste|next|continue|fortfahren|speichern und weiter|save and continue)/i }).first();
   if (!(await btn.count())) return { ok: false, offen: s.plan.offen, captcha: false, note: 'kein Weiter-Knopf auf der Seite' };
@@ -440,23 +446,29 @@ export async function nextFormPage(store: Store, chatId: string): Promise<FormRe
 }
 
 /** Offenes Formular dieses Chats (das zuletzt geöffnete). */
-export function activeForm(chatId: string): { company: string; title: string; offen: string[]; filledWith: string } | null {
-  const s = [...sessions.values()].reverse().find((x) => x.chatId === chatId);
+export function activeForm(chatId: string, jobId?: string): { company: string; title: string; offen: string[]; filledWith: string } | null {
+  const s = [...sessions.values()].reverse().find((x) => x.chatId === chatId && (!jobId || x.job.id === jobId));
   return s ? { company: s.job.company, title: s.job.title, offen: s.plan.offen, filledWith: s.extra } : null;
 }
 
 /** Angaben in natürlicher Sprache ins offene Formular übernehmen und neu ausfüllen (für den Chat-Agenten). */
 export async function refillForm(store: Store, chatId: string, angaben: string): Promise<FormResult | null> {
-  const s = [...sessions.values()].reverse().find((x) => x.chatId === chatId);
+  const jobId = await store.kvGet(`active_job:${chatId}`);
+  const s = [...sessions.values()].reverse().find((x) => x.chatId === chatId && x.job.id === jobId);
   if (!s) return null;
   clearTimeout(s.timer);
   s.timer = setTimeout(() => close(s.ref), 20 * 60_000);
   s.extra = [s.extra, angaben].filter(Boolean).join('\n');
+  await store.kvSet(`form_draft:${chatId}:${s.job.id}`, JSON.stringify({ extra: s.extra, questions: s.plan.offen }));
   return fillAndReport(store, s);
 }
 
 export async function startForm(store: Store, chatId: string, job: StoredJob, ref: string, extra = ''): Promise<FormResult | null> {
-  close(ref);
+  for (const old of [...sessions.values()]) if (old.chatId === chatId) close(old.ref);
+  await store.kvSet(`active_job:${chatId}`, job.id);
+  const draft = JSON.parse((await store.kvGet(`form_draft:${chatId}:${job.id}`)) ?? '{}');
+  extra = [draft.extra, extra].filter(Boolean).join('\n');
+  await store.kvSet(`form_draft:${chatId}:${job.id}`, JSON.stringify({ ...draft, extra }));
   const wait = await tg('sendMessage', { chat_id: chatId, text: `⏳ Rücke aus zum Bewerbungsformular bei ${job.company}, dauert etwa eine Minute …` }).catch(() => null);
   const dropWait = () => (wait ? tg('deleteMessage', { chat_id: chatId, message_id: wait.message_id }).catch(() => {}) : undefined);
   let applyUrl = (await store.kvGet(`apply_url:${job.id}`)) ?? job.url;

@@ -126,7 +126,7 @@ wirklich mehrere Punkte sind, keine Gedankenstriche. Ergebnis zuerst.
 
 Was du tun kannst:
 - Nach formular_oeffnen/formular_ergaenzen hat Martin schon den Screenshot samt Text, was fehlt. Wiederhole das nicht.
-  Antworte höchstens mit einem kurzen Satz, z.B. eine gezielte Rückfrage zum ersten offenen Punkt, oder gar nicht.
+  Das System hat zusätzlich bis zu zwei konkrete Rückfragen als eigene Chat-Nachricht geschickt. Stelle dieselben Fragen nicht nochmal. Ohne weitere notwendige Erklärung antworte [STILL].
 - Das Bewerbungsformular öffnen bzw. nach Ablauf neu öffnen (formular_oeffnen). Ist keins offen und Martin macht Angaben dafür, öffne es direkt mit diesen Angaben, statt ihn zum Knopf zu schicken.
 - Offene Bewerbungsformulare mit seinen Angaben ergänzen (formular_ergaenzen). Danach schickt das System selbst einen Screenshot,
   du antwortest dann höchstens mit einem kurzen Satz oder einer Rückfrage.
@@ -159,7 +159,7 @@ automatisch um 7, 12 und 17 Uhr, sofort mit /suche. Die Suche einstellen kannst 
 das erste Staatsexamen“) kannst du mit merken festhalten, dann berücksichtigt die Bewertung das künftig.
 
 Grenzen: Abschicken kannst du nicht, das macht Martin mit dem Knopf „Absenden“ unter dem Screenshot. Erfinde nichts über Martin.
-Wenn kein Formular offen ist und er Angaben macht, biete an, sie dir zu merken.
+Antworten auf Formularfragen IMMER direkt mit formular_ergaenzen eintragen oder bei geschlossener Sitzung mit formular_oeffnen fortsetzen. Auch Teilantworten übernehmen; für Gehaltsberatung erst beraten, keine Zahlen ohne Martins Entscheidung eintragen. Nicht nur das Speichern anbieten. Das System stellt die nächsten konkreten Fragen selbst. Bewerbungsbezogenes Zwischenspeichern ist kein dauerhaftes Profil-Merken.
 
 Martins Profil:
 ${PROFILE}
@@ -169,15 +169,16 @@ ${context}`;
 
 async function contextBlock(store: Store, chatId: string): Promise<string> {
   const facts = (await store.kvGet('answers')) ?? '';
-  const form = activeForm(chatId);
   const jobId = await store.kvGet(`active_job:${chatId}`);
+  const form = activeForm(chatId, jobId ?? undefined);
+  const draft = jobId ? JSON.parse((await store.kvGet(`form_draft:${chatId}:${jobId}`)) ?? '{}') : {};
   const job = jobId ? await store.getJob(jobId) : null;
   const app = job ? await store.getApplication(job.id) : null;
   return [
     `Gespeicherte Angaben von Martin:\n${facts || '(noch keine)'}`,
     `Gespeicherte Unterlagen: ${await documentList(store)}. Martin kann Dateien (PDF, Foto, Word) einfach in den Chat schicken, das System erkennt und speichert sie selbst.`,
     job ? `Aktuelle Bewerbung: ${job.title} bei ${job.company} (${job.location}). Status: ${app?.status ?? 'nur angesehen'}.\nAnzeige (Auszug):\n${(job.description ?? '').slice(0, 2500)}` : 'Keine aktuelle Bewerbung.',
-    form ? `Offenes Formular: ${form.title} bei ${form.company}. Noch offen: ${form.offen.join(', ') || 'nichts'}. Bisher von Martin nachgereicht: ${form.filledWith || '-'}` : 'Kein Formular offen.',
+    form ? `Offenes Formular: ${form.title} bei ${form.company}. Noch offen: ${form.offen.join(', ') || 'nichts'}. Bisher von Martin nachgereicht: ${form.filledWith || '-'}` : `Kein Browserformular offen. Gesicherter Bewerbungsstand: ${JSON.stringify(draft)}. Bei einer Antwort auf diese Fragen formular_oeffnen mit den neuen Angaben aufrufen; bisherige Angaben werden automatisch wiederhergestellt.`,
   ].join('\n\n');
 }
 
@@ -185,7 +186,7 @@ async function runTool(store: Store, chatId: string, name: string, input: any, c
   switch (name) {
     case 'formular_ergaenzen': {
       const r = await refillForm(store, chatId, String(input.angaben ?? ''));
-      if (!r) return 'Kein Formular offen (nach 20 Minuten wird es geschlossen). Martin kann unter der Stelle erneut auf „Für mich bewerben“ tippen.';
+      if (!r) return runTool(store, chatId, 'formular_oeffnen', input, ctx);
       return r.ok ? `Neu ausgefüllt, Screenshot mit Text ist schon raus. Noch offen: ${r.offen.join(', ') || 'nichts, Absenden-Knopf ist da'}.` : `Fehlgeschlagen: ${r.note}`;
     }
     case 'formular_oeffnen': {
@@ -282,9 +283,9 @@ async function runTool(store: Store, chatId: string, name: string, input: any, c
 // Ein Durchlauf je Chat gleichzeitig, damit Nachrichten in Reihenfolge beantwortet werden
 const queues = new Map<string, Promise<unknown>>();
 
-export function chat(store: Store, chatId: string, text: string, messageId?: number, observer = false): Promise<void> {
+export function chat(store: Store, chatId: string, text: string, messageId?: number, observer = false, replyTo?: number): Promise<void> {
   const prev = queues.get(chatId) ?? Promise.resolve();
-  const next = prev.then(() => turn(store, chatId, text, messageId, observer)).catch((e) => {
+  const next = prev.then(() => turn(store, chatId, text, messageId, observer, replyTo)).catch((e) => {
     console.error('Chat-Fehler:', e);
     return tg('sendMessage', { chat_id: chatId, text: 'Da ist bei mir gerade etwas schiefgelaufen, versuch es bitte gleich nochmal.' }).catch(() => {});
   });
@@ -292,7 +293,12 @@ export function chat(store: Store, chatId: string, text: string, messageId?: num
   return next.then(() => {});
 }
 
-async function turn(store: Store, chatId: string, text: string, messageId?: number, observer = false) {
+async function turn(store: Store, chatId: string, text: string, messageId?: number, observer = false, replyTo?: number) {
+  if (!observer && replyTo) {
+    const ref = await store.kvGet(`form_msg:${chatId}:${replyTo}`);
+    const jobId = ref ? await store.kvGet(`ref:${ref}`) : null;
+    if (jobId) await store.kvSet(`active_job:${chatId}`, jobId);
+  }
   const history: Msg[] = JSON.parse((await store.kvGet(`hist:${chatId}`)) ?? '[]');
   const messages: any[] = [...history.map((m) => ({ role: m.role, content: m.content })), { role: 'user', content: text }];
   // Beobachter (Aleksa): nur lesende Werkzeuge, eigener Hinweis im Systemprompt

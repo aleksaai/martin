@@ -1,5 +1,13 @@
 # HANDOFF: Martins Jobradar (Stand 2026-10-06, Mac mini)
 
+### Formular-Rückfragen im Chat (2026-10-06, enneo MacBook)
+- `fillAndReport` stellt nach jedem Formularbericht bis zu zwei vollständige offene Fragen als eigene Telegram-Nachricht mit Antwortfunktion. Die Vier-Wörter-Kürzung entfällt; Frageinhalt, Einheiten und Optionen sollen erhalten bleiben. Unlesbare Fragen dürfen nicht geraten werden.
+- Natürliche Teilantworten werden über `formular_ergaenzen` übernommen. Fehlende Sitzung führt automatisch zu `formular_oeffnen`; `form_draft:<chat>:<job>` sichert die bewerbungsbezogenen Angaben und offenen Fragen in Postgres-kv. Das ist kein globales Profil-Merken. Browserzustand selbst wird nicht gespeichert; ein abgelaufenes Formular wird neu aufgebaut (mehrseitige Portale können erneut Navigation verlangen).
+- Antworten auf Formularbilder/Rückfragen werden innerhalb der Chat-Warteschlange über `form_msg` der richtigen Bewerbung zugeordnet. Ausfüll- und Weiter-Werkzeuge berücksichtigen die aktive Bewerbung. Beim Öffnen wird eine vorherige Browsersitzung dieses Chats geschlossen.
+- Link heißt „Im Browser neu ausfüllen“, da er keine Sitzung auf Martins Handy überträgt. Abschicken bleibt ausschließlich beim Bestätigungsknopf.
+- Geprüft: `npm run check`, `node scripts/test-form-conversation.cjs` (echte Ablauf-Funktionen mit simuliertem Modell/Browser/Telegram: Rückfragen, Teilantworten, persistierte Angaben, Stellenwechsel, Wiederöffnung). Keine Bewerbung und keine Testnachricht versendet. Ein echter REWE-Durchlauf mit Martins Antworten ist noch nicht abgenommen.
+
+
 ### ▶️ Stand zum Session-Ende (2026-10-06 abends): bereit für Martins Start
 1. Aleksa schreibt in seinem Adolf-Chat `/beobachter` (VOR Martins Start, sonst wird er beim Wechsel pausiert).
 2. Martin: `/start 8fc929ae` (bzw. `t.me/<bot>?start=8fc929ae`) → Testdaten werden gelöscht, er bekommt alle Treffer der letzten 14 Tage.

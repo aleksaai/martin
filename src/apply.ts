@@ -12,6 +12,7 @@ import { findOriginalPosting, PROFILE } from './llm.ts';
 import type { Store } from './store.ts';
 import { button, esc, tg, tgFile } from './tg.ts';
 import type { StoredJob } from './types.ts';
+import { generatePassword, getCredential, portalKey, saveCredential } from './vault.ts';
 
 const client = new Anthropic({ apiKey: cfg.anthropicKey });
 
@@ -48,10 +49,49 @@ async function hasForm(page: Page): Promise<boolean> {
   return false;
 }
 
-async function openForm(page: Page, url: string) {
+class LoginRequired extends Error {
+  constructor(public portal: string, public registerUrl: string | null, public loginUrl: string, public failed = false) { super('Login nötig'); }
+}
+
+async function loginFrame(page: Page): Promise<Frame | null> {
+  for (const f of page.frames()) {
+    const pw = await f.locator('input[type=password]:visible').count().catch(() => 0);
+    const files = await f.locator('input[type=file]').count().catch(() => 0);
+    if (pw > 0 && files === 0) return f;
+  }
+  return null;
+}
+
+async function registerLink(f: Frame): Promise<string | null> {
+  const links = f.locator('a, button').filter({ hasText: /registr|konto (erstellen|anlegen)|create (an )?account|sign up|neues konto|neu hier|konto eröffnen/i });
+  const href = await links.first().getAttribute('href').catch(() => null);
+  try { return href && !/^(javascript:|#)/.test(href) ? new URL(href, f.url()).toString() : null; } catch { return null; }
+}
+
+/** Auf einer Login-Seite mit gespeicherten Daten anmelden, sonst LoginRequired werfen (Martin legt das Konto an). */
+async function handleLogin(store: Store, page: Page) {
+  const f = await loginFrame(page);
+  if (!f) return;
+  const portal = portalKey(page.url());
+  const cred = await getCredential(store, portal);
+  if (!cred || cred.status !== 'aktiv') throw new LoginRequired(portal, await registerLink(f), page.url());
+  const user = f.locator('input[type=email]:visible, input[type=text]:visible, input:not([type]):visible').first();
+  await user.fill(cred.username, { timeout: 5000 }).catch(() => {});
+  await f.locator('input[type=password]:visible').first().fill(cred.password, { timeout: 5000 });
+  const submit = f.getByRole('button', { name: /anmelden|einloggen|log ?in|sign ?in|weiter|continue/i }).first();
+  if (await submit.count()) await submit.click({ timeout: 5000 }).catch(() => {});
+  else await f.locator('input[type=password]:visible').first().press('Enter').catch(() => {});
+  await page.waitForLoadState('domcontentloaded').catch(() => {});
+  await page.waitForTimeout(5000);
+  await dismissCookies(page);
+  if (await loginFrame(page)) throw new LoginRequired(portal, null, page.url(), true);
+}
+
+async function openForm(page: Page, url: string, store?: Store) {
   await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 45_000 });
   await page.waitForTimeout(2500);
   await dismissCookies(page);
+  if (store) await handleLogin(store, page);
   for (let round = 0; round < 2 && !(await hasForm(page)); round++) {
     const cands = page.locator('a, button');
     const n = Math.min(await cands.count(), 400);
@@ -77,6 +117,7 @@ async function openForm(page: Page, url: string) {
     await page.waitForLoadState('domcontentloaded').catch(() => {});
     await page.waitForTimeout(3000);
     await dismissCookies(page);
+    if (store) await handleLogin(store, page);
   }
 }
 
@@ -325,6 +366,76 @@ async function fillAndReport(store: Store, s: Session): Promise<FormResult> {
   return { ok: true, offen: s.plan.offen, captcha };
 }
 
+/** Portal verlangt ein Konto: Martin legt es mit einem vorgeschlagenen Passwort an, der Bot loggt sich danach selbst ein. */
+async function askForAccount(store: Store, chatId: string, job: StoredJob, ref: string, e: LoginRequired): Promise<FormResult> {
+  await store.kvSet(`pending_portal:${chatId}`, JSON.stringify({ portal: e.portal, jobId: job.id, ref }));
+  if (e.failed) {
+    await tg('sendMessage', {
+      chat_id: chatId,
+      text: `Die Anmeldung bei ${job.company} hat nicht geklappt. Hast du die Bestätigungsmail schon geklickt? Wenn du ein anderes Passwort benutzt, schreib mir einfach E-Mail und Passwort, ich speichere sie verschlüsselt und lösche deine Nachricht sofort.`,
+      reply_markup: { inline_keyboard: [[button('🔄 Nochmal versuchen', `form:${ref}`)]] },
+    });
+    return { ok: false, offen: [], captcha: false, note: 'Login fehlgeschlagen, Martin wurde gefragt' };
+  }
+  let cred = await getCredential(store, e.portal);
+  if (!cred) {
+    cred = { portal: e.portal, username: CONTACT.email, password: generatePassword(), status: 'wartet' };
+    await saveCredential(store, cred);
+  }
+  const msg = await tg('sendMessage', {
+    chat_id: chatId,
+    parse_mode: 'HTML',
+    link_preview_options: { is_disabled: true },
+    text: [
+      `${esc(job.company.replace(/ (GmbH|AG|SE|KG|mbH).*$/, ''))} nimmt Bewerbungen nur über ein eigenes Bewerberkonto an. Leg es bitte einmal an, danach melde ich mich selbst an und fülle alles aus.`,
+      '',
+      `E-Mail: <code>${esc(cred.username)}</code>`,
+      `Passwort: <code>${esc(cred.password)}</code> (antippen zum Kopieren)`,
+      '',
+      'Nach dem Anlegen die Bestätigungsmail klicken und dann hier tippen. Diese Nachricht lösche ich danach.',
+    ].join('\n'),
+    reply_markup: { inline_keyboard: [
+      [{ text: '📝 Konto anlegen', url: e.registerUrl ?? e.loginUrl }],
+      [button('✅ Konto ist angelegt', `acct:${ref}`)],
+      [button('🔑 Ich habe schon ein Konto', `acctown:${ref}`)],
+    ] },
+  });
+  await store.kvSet(`pending_portal_msg:${chatId}`, String(msg.message_id));
+  return { ok: false, offen: [], captcha: false, note: 'Konto nötig, Martin hat Anleitung und Passwort bekommen' };
+}
+
+/** Knopf "Konto ist angelegt": Zugang freischalten, Nachricht mit Passwort löschen, Formular neu starten. */
+export async function accountCreated(store: Store, chatId: string): Promise<{ jobId: string; ref: string } | null> {
+  const pending = await store.kvGet(`pending_portal:${chatId}`);
+  if (!pending) return null;
+  const { portal, jobId, ref } = JSON.parse(pending);
+  const cred = await getCredential(store, portal);
+  if (cred) await saveCredential(store, { ...cred, status: 'aktiv' });
+  const msgId = await store.kvGet(`pending_portal_msg:${chatId}`);
+  if (msgId) await tg('deleteMessage', { chat_id: chatId, message_id: Number(msgId) }).catch(() => {});
+  return { jobId, ref };
+}
+
+/** Martin nennt eigene Zugangsdaten (über den Chat): verschlüsselt speichern. */
+export async function saveOwnAccount(store: Store, chatId: string, username: string, password: string, portal?: string): Promise<string | null> {
+  const pending = await store.kvGet(`pending_portal:${chatId}`);
+  const key = portal || (pending ? JSON.parse(pending).portal : null);
+  if (!key) return null;
+  await saveCredential(store, { portal: key, username, password, status: 'aktiv' });
+  return key;
+}
+
+/** Mehrseitige Formulare (Workday, SuccessFactors): auf "Weiter" klicken und die nächste Seite ausfüllen. */
+export async function nextFormPage(store: Store, chatId: string): Promise<FormResult | null> {
+  const s = [...sessions.values()].reverse().find((x) => x.chatId === chatId);
+  if (!s) return null;
+  const btn = s.page.getByRole('button', { name: /^(weiter|nächste|next|continue|fortfahren|speichern und weiter|save and continue)/i }).first();
+  if (!(await btn.count())) return { ok: false, offen: s.plan.offen, captcha: false, note: 'kein Weiter-Knopf auf der Seite' };
+  await btn.click({ timeout: 8000 });
+  await s.page.waitForTimeout(4000);
+  return fillAndReport(store, s);
+}
+
 /** Offenes Formular dieses Chats (das zuletzt geöffnete). */
 export function activeForm(chatId: string): { company: string; title: string; offen: string[]; filledWith: string } | null {
   const s = [...sessions.values()].reverse().find((x) => x.chatId === chatId);
@@ -351,12 +462,10 @@ export async function startForm(store: Store, chatId: string, job: StoredJob, re
     applyUrl = (await findOriginalPosting(job)) ?? applyUrl;
     await store.kvSet(`apply_url:${job.id}`, applyUrl);
   }
-  if (/arbeitsagentur\.de|myworkdayjobs|successfactors|oraclecloud|taleo|icims|avature|phenom/i.test(applyUrl)) {
+  if (/arbeitsagentur\.de/i.test(applyUrl)) {
     if (wait) await tg('deleteMessage', { chat_id: chatId, message_id: wait.message_id }).catch(() => {});
-    await tg('sendMessage', { chat_id: chatId, text: /arbeitsagentur/.test(applyUrl)
-      ? `Für diese Stelle finde ich keine eigene Online-Anzeige von ${job.company}, nur die der Arbeitsagentur. Dort steht der Bewerbungsweg hinter einer Sicherheitsabfrage, die musst du selbst lösen: ${applyUrl}`
-      : `Das Portal von ${job.company} verlangt ein eigenes Konto. Da bewirbst du dich bitte selbst, beide PDFs hast du oben: ${applyUrl}` });
-    return { ok: false, offen: [], captcha: false, note: 'kein ausfüllbares Formular (Arbeitsagentur oder Konto-Portal), Martin wurde informiert' };
+    await tg('sendMessage', { chat_id: chatId, text: `Für diese Stelle finde ich keine eigene Online-Anzeige von ${job.company}, nur die der Arbeitsagentur. Dort steht der Bewerbungsweg hinter einer Sicherheitsabfrage, die musst du selbst lösen: ${applyUrl}` });
+    return { ok: false, offen: [], captcha: false, note: 'nur Arbeitsagentur-Anzeige, Martin wurde informiert' };
   }
   const app = await store.getApplication(job.id);
   const dir = mkdtempSync(join(tmpdir(), 'bewerbung-'));
@@ -371,10 +480,15 @@ export async function startForm(store: Store, chatId: string, job: StoredJob, re
   const s: Session = { job, chatId, ref, context, page, fields: [], plan: { fill: [], files: [], check: [], consent: [], offen: [] }, files, extra, timer: setTimeout(() => close(ref), 20 * 60_000) };
   sessions.set(ref, s);
   try {
-    await openForm(page, applyUrl);
+    await openForm(page, applyUrl, store);
     await dropWait();
     return await fillAndReport(store, s);
   } catch (e) {
+    if (e instanceof LoginRequired) {
+      await dropWait();
+      close(ref);
+      return askForAccount(store, chatId, job, ref, e);
+    }
     await dropWait();
     await tg('sendMessage', { chat_id: chatId, text: `Das Formular konnte ich nicht ausfüllen (${(e as Error).message.slice(0, 120)}). Bitte bewirb dich direkt:\n${applyUrl}` });
     close(ref);

@@ -1,7 +1,7 @@
 // Freier Chat mit Martin: Bewerbungs-Assistent mit Werkzeugen (Formular ergänzen, Anschreiben ändern, Gedächtnis, Websuche).
 // Absenden kann der Chat nie, das bleibt beim Knopf "✅ Absenden".
 import Anthropic from '@anthropic-ai/sdk';
-import { activeForm, refillForm, startForm } from './apply.ts';
+import { activeForm, nextFormPage, refillForm, saveOwnAccount, startForm } from './apply.ts';
 import { reviseAndSend } from './bewerbung.ts';
 import { cfg } from './config.ts';
 import { PROFILE } from './llm.ts';
@@ -10,6 +10,8 @@ import { tg } from './tg.ts';
 
 const client = new Anthropic({ apiKey: cfg.anthropicKey });
 const HISTORY = 24;
+// Diese Werkzeuge schicken selbst eine Nachricht mit Bild/PDF und Text
+const SENDS_ITSELF = new Set(['formular_oeffnen', 'formular_ergaenzen', 'formular_weiter', 'anschreiben_aendern']);
 
 type Msg = { role: 'user' | 'assistant'; content: string };
 
@@ -28,6 +30,16 @@ const TOOLS: Anthropic.Tool[] = [
     name: 'anschreiben_aendern',
     description: 'Ändert das Anschreiben der aktuellen Bewerbung nach Martins Wunsch und schickt das neue PDF. Für ganze eigene Fassungen den kompletten Text als wunsch übergeben.',
     input_schema: { type: 'object' as const, properties: { wunsch: { type: 'string' } }, required: ['wunsch'] },
+  },
+  {
+    name: 'formular_weiter',
+    description: 'Bei mehrseitigen Formularen (Workday, SuccessFactors): auf "Weiter" klicken und die nächste Seite ausfüllen. Schickt einen neuen Screenshot. Nur wenn die aktuelle Seite vollständig ist oder Martin es will. Schickt nie ab.',
+    input_schema: { type: 'object' as const, properties: {} },
+  },
+  {
+    name: 'konto_hinterlegen',
+    description: 'Speichert Martins Zugangsdaten für ein Bewerberportal verschlüsselt (wenn er schon ein Konto hat und E-Mail/Benutzer und Passwort schreibt). Seine Nachricht wird danach automatisch aus dem Chat gelöscht. Danach formular_oeffnen aufrufen.',
+    input_schema: { type: 'object' as const, properties: { benutzer: { type: 'string' }, passwort: { type: 'string' } }, required: ['benutzer', 'passwort'] },
   },
   {
     name: 'merken',
@@ -63,6 +75,11 @@ Was du tun kannst:
   Stundenlohn × Wochenstunden × 52. Nenne nur Zahlen, die du in der Recherche wirklich gefunden hast, Quelle in drei Wörtern.
 - Einschätzungen und Tipps zu Stellen, Firmen und Bewerbungen geben.
 
+Bewerberportale mit Konto (Workday, SuccessFactors, eigene Portale): Das System erkennt Login-Seiten selbst und schickt Martin
+eine Anleitung mit vorgeschlagenem Passwort. Hat er schon ein Konto und schreibt dir Zugangsdaten, nimm konto_hinterlegen und
+danach formular_oeffnen. Wiederhole Passwörter nie im Text. Mehrseitige Formulare: formular_weiter.
+Wenn ein Werkzeug schon geantwortet hat und du nichts Neues zu sagen hast, antworte genau mit [STILL].
+
 Grenzen: Abschicken kannst du nicht, das macht Martin mit dem Knopf „Absenden“ unter dem Screenshot. Erfinde nichts über Martin.
 Wenn kein Formular offen ist und er Angaben macht, biete an, sie dir zu merken.
 
@@ -85,7 +102,7 @@ async function contextBlock(store: Store, chatId: string): Promise<string> {
   ].join('\n\n');
 }
 
-async function runTool(store: Store, chatId: string, name: string, input: any): Promise<string> {
+async function runTool(store: Store, chatId: string, name: string, input: any, ctx: { messageId?: number }): Promise<string> {
   switch (name) {
     case 'formular_ergaenzen': {
       const r = await refillForm(store, chatId, String(input.angaben ?? ''));
@@ -107,6 +124,16 @@ async function runTool(store: Store, chatId: string, name: string, input: any): 
       await reviseAndSend(store, chatId, jobId, String(input.wunsch ?? ''));
       return 'Neues PDF ist raus.';
     }
+    case 'formular_weiter': {
+      const r = await nextFormPage(store, chatId);
+      if (!r) return 'Kein Formular offen.';
+      return r.ok ? `Nächste Seite ausgefüllt, Screenshot mit Text ist raus. Noch offen: ${r.offen.join(', ') || 'nichts'}.` : `Ging nicht: ${r.note}`;
+    }
+    case 'konto_hinterlegen': {
+      const portal = await saveOwnAccount(store, chatId, String(input.benutzer ?? ''), String(input.passwort ?? ''));
+      if (ctx.messageId) await tg('deleteMessage', { chat_id: chatId, message_id: ctx.messageId }).catch(() => {});
+      return portal ? `Zugang für ${portal} gespeichert, Martins Nachricht ist gelöscht. Jetzt formular_oeffnen aufrufen.` : 'Kein Portal bekannt, für das ein Konto gebraucht wird.';
+    }
     case 'merken': {
       const prev = (await store.kvGet('answers')) ?? '';
       const fakt = String(input.fakt ?? '').trim();
@@ -127,9 +154,9 @@ async function runTool(store: Store, chatId: string, name: string, input: any): 
 // Ein Durchlauf je Chat gleichzeitig, damit Nachrichten in Reihenfolge beantwortet werden
 const queues = new Map<string, Promise<unknown>>();
 
-export function chat(store: Store, chatId: string, text: string): Promise<void> {
+export function chat(store: Store, chatId: string, text: string, messageId?: number): Promise<void> {
   const prev = queues.get(chatId) ?? Promise.resolve();
-  const next = prev.then(() => turn(store, chatId, text)).catch((e) => {
+  const next = prev.then(() => turn(store, chatId, text, messageId)).catch((e) => {
     console.error('Chat-Fehler:', e);
     return tg('sendMessage', { chat_id: chatId, text: 'Da ist bei mir gerade etwas schiefgelaufen, versuch es bitte gleich nochmal.' }).catch(() => {});
   });
@@ -137,13 +164,15 @@ export function chat(store: Store, chatId: string, text: string): Promise<void> 
   return next.then(() => {});
 }
 
-async function turn(store: Store, chatId: string, text: string) {
+async function turn(store: Store, chatId: string, text: string, messageId?: number) {
   const history: Msg[] = JSON.parse((await store.kvGet(`hist:${chatId}`)) ?? '[]');
   const messages: any[] = [...history.map((m) => ({ role: m.role, content: m.content })), { role: 'user', content: text }];
   const sys = system(await contextBlock(store, chatId));
   const typing = setInterval(() => void tg('sendChatAction', { chat_id: chatId, action: 'typing' }).catch(() => {}), 4500);
   void tg('sendChatAction', { chat_id: chatId, action: 'typing' }).catch(() => {});
   let reply = '';
+  let sentByTool = false;
+  let secret = false;
   try {
     for (let i = 0; i < 8; i++) {
       const res = await client.messages.create({
@@ -161,14 +190,20 @@ async function turn(store: Store, chatId: string, text: string) {
         break;
       }
       const results = [];
-      for (const u of uses) results.push({ type: 'tool_result', tool_use_id: u.id, content: await runTool(store, chatId, u.name, u.input) });
+      for (const u of uses) {
+        if (SENDS_ITSELF.has(u.name)) sentByTool = true;
+        if (u.name === 'konto_hinterlegen') secret = true;
+        results.push({ type: 'tool_result', tool_use_id: u.id, content: await runTool(store, chatId, u.name, u.input, { messageId }) });
+      }
       messages.push({ role: 'user', content: results });
     }
   } finally {
     clearInterval(typing);
   }
-  reply = reply.replace(/\s*[—–]\s*/g, ', ').replace(/\*\*(.+?)\*\*/g, '$1');
+  reply = reply.replace(/\s*[—–]\s*/g, ', ').replace(/\*\*(.+?)\*\*/g, '$1').replace(/^\[STILL\]$/i, '');
+  // Hat ein Werkzeug schon Bild/PDF mit Text geschickt, keine zweite Nachricht hinterher (außer echte Rückfrage)
+  if (sentByTool && !reply.includes('?')) reply = '';
   if (reply) await tg('sendMessage', { chat_id: chatId, text: reply.slice(0, 4000), link_preview_options: { is_disabled: true } });
-  const saved: Msg[] = [...history, { role: 'user' as const, content: text }, { role: 'assistant' as const, content: reply || '(Werkzeug ausgeführt)' }].slice(-HISTORY);
+  const saved: Msg[] = [...history, { role: 'user' as const, content: secret ? '(Zugangsdaten für ein Portal, gelöscht)' : text }, { role: 'assistant' as const, content: reply || '(Werkzeug ausgeführt)' }].slice(-HISTORY);
   await store.kvSet(`hist:${chatId}`, JSON.stringify(saved));
 }

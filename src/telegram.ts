@@ -1,6 +1,6 @@
 // Telegram per Long Polling: kein Webhook, keine öffentliche Adresse nötig.
 import { chat } from './agent.ts';
-import { cancelForm, startForm, submitForm } from './apply.ts';
+import { accountCreated, cancelForm, startForm, submitForm } from './apply.ts';
 import { handleLetterReply, handleOutcome, listApplications, markApplied, prepareApplication } from './bewerbung.ts';
 import { cfg } from './config.ts';
 import type { Store } from './store.ts';
@@ -124,6 +124,18 @@ async function handle(u: any, store: Store, triggerRun: () => Promise<string>) {
       else if (result === 'unklar') await tg('sendMessage', { chat_id: chatId, text: 'Wenn es geklappt hat, tipp hier:', reply_markup: { inline_keyboard: [[{ text: '✅ Ich habe mich beworben', callback_data: `ok:${ref}` }]] } });
       return;
     }
+    if (action === 'acct') {
+      await answer('Super, ich melde mich jetzt an.');
+      const p = await accountCreated(store, chatId);
+      const job = p ? await store.getJob(p.jobId) : null;
+      if (job && p) await startForm(store, chatId, job, p.ref);
+      return;
+    }
+    if (action === 'acctown') {
+      await answer();
+      await tg('sendMessage', { chat_id: chatId, text: 'Dann schreib mir einfach E-Mail und Passwort für das Portal. Ich speichere sie verschlüsselt und lösche deine Nachricht direkt danach aus dem Chat.' });
+      return;
+    }
     const jobId = await store.kvGet(`ref:${ref}`);
     const job = jobId ? await store.getJob(jobId) : null;
     if (!job) { await answer('Stelle nicht mehr gefunden.'); return; }
@@ -180,13 +192,18 @@ async function handle(u: any, store: Store, triggerRun: () => Promise<string>) {
   }
   if (!known) return;
 
-  const replyTo = m.reply_to_message?.message_id;
-  if (replyTo && !text.startsWith('/')) {
-    if (await handleLetterReply(store, chatId, replyTo, text)) return;
-  }
-  // Alles, was kein Befehl ist, geht an den Chat-Assistenten (Formular ergänzen, Beratung, Gedächtnis)
+  // 👀 zeigt sofort, dass die Nachricht angekommen ist; verschwindet mit der Antwort
+  const react = (on: boolean) => tg('setMessageReaction', { chat_id: chatId, message_id: m.message_id, reaction: on ? [{ type: 'emoji', emoji: '👀' }] : [] }).catch(() => {});
   if (!text.startsWith('/')) {
-    await chat(store, chatId, text);
+    await react(true);
+    try {
+      const replyTo = m.reply_to_message?.message_id;
+      if (replyTo && (await handleLetterReply(store, chatId, replyTo, text))) return;
+      // Alles, was kein Befehl ist, geht an den Chat-Assistenten (Formular ergänzen, Beratung, Gedächtnis, Konten)
+      await chat(store, chatId, text, m.message_id);
+    } finally {
+      await react(false);
+    }
     return;
   }
 

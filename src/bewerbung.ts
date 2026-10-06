@@ -8,9 +8,8 @@ import type { StoredJob } from './types.ts';
 
 // Portale mit Konto-Pflicht: dort bewirbt Martin sich selbst über den Link.
 // BA-Stellen gehen, wenn die Original-Anzeige beim Arbeitgeber gefunden wurde (findOriginalPosting).
-const NO_FORM = new Set(['workday', 'successfactors_rss', 'oracle_hcm']);
-const ACCOUNT_PORTAL = /myworkdayjobs|successfactors|oraclecloud|taleo|icims|avature|phenom/i;
-export const canFillForm = (source: string, url: string) => !NO_FORM.has(source) && !ACCOUNT_PORTAL.test(url) && !/arbeitsagentur\.de/.test(url);
+// Portale mit Konto (Workday, SuccessFactors …) gehen über den Konto-Ablauf in apply.ts. Nur die Arbeitsagentur nicht (Captcha).
+export const canFillForm = (_source: string, url: string) => !/arbeitsagentur\.de/.test(url);
 
 /** Statuszeile wie bei den anderen Agenten: eine Nachricht, die die Schritte zeigt und am Ende verschwindet. */
 async function statusLine(chatId: string, first: string) {
@@ -37,9 +36,9 @@ export function applicationEmail(text: string | null): string | null {
 const DAY = 86_400_000;
 
 /** Anschreiben nur als PDF. Eine Antwort auf dieses PDF ändert es (handleLetterReply). */
-async function sendLetterPdf(store: Store, chatId: string, job: StoredJob, letter: string, caption: string) {
+async function sendLetterPdf(store: Store, chatId: string, job: StoredJob, letter: string, caption: string, markup?: unknown) {
   const pdf = await letterPdf(letter, job);
-  const msg = await tgFile('sendDocument', chatId, pdf, `Anschreiben_Martin_Spalevic_${fileSafe(job.company)}.pdf`, { caption });
+  const msg = await tgFile('sendDocument', chatId, pdf, `Anschreiben_Martin_Spalevic_${fileSafe(job.company)}.pdf`, markup ? { caption, reply_markup: markup } : { caption });
   await store.kvSet(`letter_msg:${chatId}:${msg.message_id}`, job.id);
 }
 
@@ -104,7 +103,13 @@ export async function reviseAndSend(store: Store, chatId: string, jobId: string,
     await store.upsertApplication({ job_id: job.id, letter });
     if (own) await store.addLetterExample(text);
     await status.step('Baue das PDF …');
-    await sendLetterPdf(store, chatId, job, letter, own ? 'Deine Fassung. Ich schreibe die nächsten Anschreiben näher an deinem Stil.' : 'Überarbeitet. Noch etwas? Schreib es mir einfach.');
+    // Direkt darunter weiter bewerben, mit genau dieser Fassung (das Formular nimmt immer die neueste)
+    const { shortRef } = await import('./telegram.ts');
+    const ref = await shortRef(store, job.id);
+    const applyUrl = (await store.kvGet(`apply_url:${job.id}`)) ?? job.url;
+    const markup = { inline_keyboard: [[...(canFillForm(job.source, applyUrl) ? [button('🤖 Mit diesem Anschreiben bewerben', `form:${ref}`)] : []), button('✅ Schon beworben', `ok:${ref}`)]] };
+    await status.done();
+    await sendLetterPdf(store, chatId, job, letter, own ? 'Deine Fassung. Ich schreibe die nächsten Anschreiben näher an deinem Stil.' : 'Überarbeitet. Noch etwas ändern? Schreib es mir einfach.', markup);
   } finally {
     await status.done();
   }

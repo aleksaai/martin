@@ -30,6 +30,14 @@
   **Sicherungen:** nie auf arbeitsagentur.de oder Konto-Portalen ausfüllen (erst Original-Anzeige suchen), Formular nur bei Upload/E-Mail+Feldern,
   Absenden-Knopf nur ohne offene Punkte UND mit hochgeladenem Lebenslauf (Anlass: lokaler Test füllte das BA-Captcha-Feld und bot Absenden an).
   Test-Skripte: `scripts/test-chat.ts` (Telegram auf Konsole umgeleitet), `test-form.ts`, `test-letter.ts`, `test-original.ts`, `check-feeds.ts`.
+- **Konten bei Bewerberportalen (06.10. abends, `src/vault.ts`):** Login-Seite (Passwortfeld ohne Upload) → mit gespeichertem Zugang anmelden,
+  sonst `askForAccount`: Martin bekommt Knopf „📝 Konto anlegen“ + E-Mail + vorgeschlagenes Passwort (`generatePassword`), legt das Konto selbst an
+  (Bestätigungsmail, Captcha, AGB = seine Zustimmung), tippt „✅ Konto ist angelegt“ → Nachricht mit Passwort wird gelöscht, Bot loggt sich ein.
+  Eigene Zugangsdaten im Chat → Werkzeug `konto_hinterlegen`, seine Nachricht wird gelöscht, Passwort nie im Verlauf. Verschlüsselt (AES-256-GCM)
+  in `kv cred:<portal>`, Schlüssel aus `VAULT_KEY` oder ersatzweise dem Bot-Token. Portal-Schlüssel = Host (bei SuccessFactors + `company`).
+  Getestet bis zur Konto-Anleitung bei EY (SuccessFactors `EYHRISPRD1`). Login + Formular nach dem Login noch NICHT echt getestet.
+  Mehrseitige Formulare: Werkzeug `formular_weiter`. Außerdem: 👀-Reaktion auf jede Nachricht, keine zweite Chat-Nachricht nach Bild/PDF
+  (`SENDS_ITSELF`, `[STILL]`), Knopf „🤖 Mit diesem Anschreiben bewerben“ unter jeder überarbeiteten Fassung.
 - Offen: erster Railway-Build mit Playwright prüfen, Martin anmelden, Martin nennt einmal Starttermin/Stunden (Antwort auf einen Formular-Screenshot
   landet in `kv.answers` und fließt danach auch in die Anschreiben), Immatrikulationsbescheinigung als `data/docs/immatrikulation.pdf`.
 

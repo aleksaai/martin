@@ -1,4 +1,11 @@
-# HANDOFF: Martins Jobradar (Stand 2026-10-06, Mac mini)
+# HANDOFF: Martins Jobradar (Stand 2026-10-06 spät, enneo MacBook)
+
+### Aktueller Einstieg nach dieser Session
+- Martin ist angemeldet. Bestehende Bewerbung über eine Antwort auf ihren Formular-Screenshot fortsetzen; keinen neuen `/start` verlangen. Adolf meldet sich durch ein Deployment nicht von selbst mit einer Erklärung.
+- Code `7ec93ba` ist auf GitHub und wurde mit Railway-Deployment `b7a37801-dad5-45ca-8e6e-4dc316cd3f81` erfolgreich gestartet. Browser-Lifecycle- und vollständiger isolierter Versand-/Tracking-Test liefen zusätzlich im produktiven Linux-Container erfolgreich. Der kurzzeitige Telegram-Polling-Konflikt trat beim Wechsel der Instanzen auf; die alte Instanz wurde entfernt.
+- Aleksas bestätigte Angabe „keine weitere Tätigkeit“ wurde ausschließlich im bestehenden EY-Bewerbungs-Draft ergänzt, mit Versionsprüfung. Die Modell-/Browser-Tests liefen mit isoliertem Store; reale Arbeitgeber-Bewerbungen und Telegram-Testnachrichten wurden nicht versendet.
+- **Zurückgestellt:** automatische Entdeckung weiterer Firmen und ausgewogenere Verteilung der Vorschläge. Aktuell Dedupe über Anzeigen-ID/Firma+Titel; BA-Suche findet Firmen außerhalb der festen Liste. Direkte Karriereseiten bleiben feste Liste plus Chat-Ergänzungen, Sortierung nach Passung ohne Firmenquote. Einmalige 24-h-Erinnerung ist kein neuer Treffer. Aleksa wollte zuerst zuverlässiges Bewerben; diesen Ausbau noch nicht starten.
+- Private Testbelege und Runtime-Dateien liegen nur auf dieser Maschine unter `~/.codex/backups/martin-form-2026-10-06/`. Der vorübergehend registrierte Railway-SSH-Schlüssel `martin-form-diagnostic` wurde nach der Diagnose wieder entfernt. HTTPS-Push dieses Repos lieferte 403; Push über `git@github.com:aleksaai/martin.git` funktionierte.
 
 ### Bewerbungs-Reparatur nach Martins REWE-/EY-Fehlern (2026-10-06 spät)
 - **Ursachen real reproduziert:** konkurrierende Telegram-Klicks schließen gegenseitig Formular-Kontexte; PDF- und Formular-Browser teilten einen unvollständigen Idle-Zähler. REWE-Lebenslauf-Upload öffnet einen Parsing-Dialog, der Texteingaben blockiert. EY-Upload läuft über ein Plus-Symbol → Quelldialog → Dateifeld; eingeklappte Abschnitte und ARIA-Radios wurden bisher übersehen.
@@ -9,15 +16,15 @@
 - **Grenzen:** Live-Abnahme reicht bis zur geprüften Freigabe; der tatsächliche Arbeitgeber-Eingang ist erst nach Martins Absenden belegbar. Andere Portale/Captchas und mehrseitige Workday-Abläufe sind damit nicht pauschal abgenommen. Ungeklärte persönliche Angaben weiter erfragen, nie erfinden. Modelltests und lokale Fixtures sind kein Ersatz für den echten Portal-Readback.
 
 
-### Formular-Rückfragen im Chat (2026-10-06, enneo MacBook)
+### Historie: erste Formular-Rückfragen-Korrektur (2026-10-06, durch spätere Reparatur ergänzt)
 - `fillAndReport` stellt nach jedem Formularbericht bis zu zwei vollständige offene Fragen als eigene Telegram-Nachricht mit Antwortfunktion. Die Vier-Wörter-Kürzung entfällt; Frageinhalt, Einheiten und Optionen sollen erhalten bleiben. Unlesbare Fragen dürfen nicht geraten werden.
 - Natürliche Teilantworten werden über `formular_ergaenzen` übernommen. Fehlende Sitzung führt automatisch zu `formular_oeffnen`; `form_draft:<chat>:<job>` sichert die bewerbungsbezogenen Angaben und offenen Fragen in Postgres-kv. Das ist kein globales Profil-Merken. Browserzustand selbst wird nicht gespeichert; ein abgelaufenes Formular wird neu aufgebaut (mehrseitige Portale können erneut Navigation verlangen).
 - Antworten auf Formularbilder/Rückfragen werden innerhalb der Chat-Warteschlange über `form_msg` der richtigen Bewerbung zugeordnet. Ausfüll- und Weiter-Werkzeuge berücksichtigen die aktive Bewerbung. Beim Öffnen wird eine vorherige Browsersitzung dieses Chats geschlossen.
-- Link heißt „Im Browser neu ausfüllen“, da er keine Sitzung auf Martins Handy überträgt. Abschicken bleibt ausschließlich beim Bestätigungsknopf.
-- Geprüft: `npm run check`, `node scripts/test-form-conversation.cjs` (echte Ablauf-Funktionen mit simuliertem Modell/Browser/Telegram: Rückfragen, Teilantworten, persistierte Angaben, Stellenwechsel, Wiederöffnung). Keine Bewerbung und keine Testnachricht versendet. Ein echter REWE-Durchlauf mit Martins Antworten ist noch nicht abgenommen.
+- Der Link wurde zunächst „Im Browser neu ausfüllen“ genannt; die spätere Reparatur entfernt diesen Ausweichweg aus dem Formularbericht. Abschicken bleibt ausschließlich beim Bestätigungsknopf.
+- Damals geprüft: `npm run check`, `node scripts/test-form-conversation.cjs` mit simuliertem Modell/Browser/Telegram. Diese Prüfung reichte nicht aus. Die reale REWE-/EY-Abnahme erfolgte erst mit der oben beschriebenen Reparatur.
 
 
-### ▶️ Stand zum Session-Ende (2026-10-06 abends): bereit für Martins Start
+### Historie vor Martins Anmeldung (2026-10-06, inzwischen überholt)
 1. Aleksa schreibt in seinem Adolf-Chat `/beobachter` (VOR Martins Start, sonst wird er beim Wechsel pausiert).
 2. Martin: `/start 8fc929ae` (bzw. `t.me/<bot>?start=8fc929ae`) → Testdaten werden gelöscht, er bekommt alle Treffer der letzten 14 Tage.
 3. Martin nennt Adolf einmal Starttermin, Wochenstunden, Arbeitstage, Gehaltswunsch und sagt „merk dir das“.

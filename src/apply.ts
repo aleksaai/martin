@@ -13,6 +13,7 @@ import { hasApplicationForm, followPosting } from './form-navigation.ts';
 import { CONTACT, fileSafe, letterPdf } from './documents.ts';
 import { materialize } from './uploads.ts';
 import { findOriginalPosting, PROFILE } from './llm.ts';
+import { applicationEmail } from './bewerbung.ts';
 import type { Store } from './store.ts';
 import { button, esc, tg, tgFile } from './tg.ts';
 import type { StoredJob } from './types.ts';
@@ -572,6 +573,12 @@ export async function startForm(store: Store, chatId: string, job: StoredJob, re
     catch (e) {
       error = (e as Error).message;
       console.error(`Formular ${job.company}, Versuch ${attempt + 1}: ${error.slice(0, 400)}`);
+      // Kein Formular, aber eine Bewerbungsadresse in der Anzeige: dann ist Mail der Weg, kein zweiter Browserversuch
+      const email = /kein belegtes Bewerbungsformular/.test(error) ? applicationEmail(job.description) : null;
+      if (email) {
+        await tg('sendMessage', { chat_id: chatId, text: `Bei ${job.company} gibt es kein Online-Formular. Die Bewerbung geht per Mail an ${email}: Begleitmail von oben, Anschreiben-PDF und Lebenslauf anhängen. Abschicken musst du sie selbst, danach tipp auf den Knopf.`, reply_markup: { inline_keyboard: [[button('✅ Ich habe mich beworben', `ok:${ref}`)]] } });
+        return { ok: false, offen: [], captcha: false, note: `Bewerbung per Mail an ${email}, Martin wurde informiert` };
+      }
       if (!attempt) await tg('sendMessage', {chat_id: chatId, text: 'Die Browsersitzung hat einen Fehler. Ich öffne sie neu und übernehme deine gespeicherten Angaben.'});
     }
   }

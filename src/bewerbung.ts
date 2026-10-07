@@ -73,8 +73,8 @@ export async function prepareApplication(store: Store, chatId: string, job: Stor
     if (email) {
       await status.step('Schreibe die Begleitmail …');
       const mail = await writeMail(job);
-      how = `📧 Die Anzeige nennt <b>${esc(email)}</b>. Ich habe die Begleitmail vorbereitet. Zunächst prüfe ich, ob ich die Bewerbung im Firmenportal fertigstellen kann:\n\n${esc(mail)}`;
-      rows.push([button('Bewerbungsweg prüfen', `form:${ref}`)]);
+      how = `📧 Die Anzeige nennt <b>${esc(email)}</b>. Begleitmail ist vorbereitet, Anschreiben und Lebenslauf hängst du als PDF an. Falls die Firma zusätzlich ein Online-Formular hat, kann ich das ausfüllen:\n\n${esc(mail)}`;
+      rows.push([button('🤖 Online-Formular suchen', `form:${ref}`)]);
     } else if (canFillForm(job.source, applyUrl)) {
       how = `🤖 Soll ich mich für dich bewerben? Ich fülle das Formular bei ${esc(job.company)} aus, lade beide PDFs hoch und schicke dir einen Screenshot. Abgeschickt wird erst, wenn du zustimmst.`;
       rows.push([button('🤖 Für mich bewerben', `form:${ref}`)]);

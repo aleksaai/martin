@@ -9,7 +9,10 @@ export async function fetchText(url: string, init: RequestInit = {}, timeoutMs =
     });
     // Personio und Workable drosseln schnell: kurz warten, dann nochmal
     if ((res.status === 429 || res.status === 503) && attempt < 3) {
-      await sleep(Number(res.headers.get('retry-after')) * 1000 || 4000 * (attempt + 1));
+      const retryAfter = Number(res.headers.get('retry-after')) * 1000 || 4000 * (attempt + 1);
+      // Cloudflare meldet bei IP-Sperren Retry-After von vielen Stunden: nicht warten, sondern klar scheitern
+      if (retryAfter > 20_000) throw new Error(`${res.status} ${res.statusText} bei ${url} (gesperrt, Retry-After ${Math.round(retryAfter / 60000)} min)`);
+      await sleep(retryAfter);
       continue;
     }
     if (!res.ok) throw new Error(`${res.status} ${res.statusText} bei ${url}`);

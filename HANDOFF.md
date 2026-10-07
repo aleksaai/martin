@@ -1,4 +1,14 @@
-# HANDOFF: Martins Jobradar (Stand 2026-10-06 spät, enneo MacBook)
+# HANDOFF: Martins Jobradar (Stand 2026-10-07 mittags, enneo MacBook)
+
+### Prüfung des Live-Betriebs + vier Korrekturen (2026-10-07)
+- Läufe 7:00 und 12:00 sauber (8.274 / 8.395 Stellen, 97 / 144 neu, 0 Treffer, zu Recht: Marketing/Sales/WDR mit 1–2 Punkten). 20 Treffer gesamt (05./06.10.), 7 Bewerbungsentwürfe, noch keine abgeschickt. Feedback 7 gut / 1 schlecht.
+- **Mailbewerbung ohne Formular (Meilicke Hoffmann, 10:29):** Adolf hatte die Adresse `bewerbung@…` erkannt, dann trotzdem zweimal ein Formular gesucht und „technische Prüfung noch nicht durch“ gemeldet. Jetzt: scheitert die Formularsuche und die Anzeige nennt eine Bewerbungsadresse, sagt er klar „kein Online-Formular, Bewerbung per Mail an X, Begleitmail + beide PDFs, abschicken musst du selbst“ mit Knopf „Ich habe mich beworben“ (`startForm` in `apply.ts`). Hinweistext in `bewerbung.ts` entsprechend, Knopf heißt „Online-Formular suchen“.
+- **Vorfilter (`filter.ts`):** erkennt jetzt „Wissenschaftliche Mitarbeit“ (Substantiv), Gender-Schreibweisen „Mitarbeiter*in / :in / /in“ und „Student Trainee“. Vorher fielen CMS Hasche Sigle, Loschelder Köln („Referendariat / wissenschaftliche Mitarbeit“, jetzt wird „Referendar“ bei Kombi-Anzeigen mit Mitarbeit ignoriert) und Clifford Chance Frankfurt ohne Modellbewertung raus.
+- **Radius:** Railway-Variable `MAX_KM=50` (vorher 40): Düsseldorf und Aachen liegen bei 46–48 km; 58 Firmen der Liste sitzen in Düsseldorf. BA-Umkreissuche stand schon auf 50.
+- **Workable:** die Railway-Egress-IP ist bei Workable/Cloudflare gesperrt (429 mit `Retry-After: 72396` s, geprüft aus dem Container; lokal 200 in 0,2 s). `fetchText` wartete deshalb 20 h → 45-s-Timeout je Firma. Jetzt: Retry-After > 20 s bricht sofort mit klarer Meldung ab (`http.ts`), und Dentons/Usercentrics/Mondu/GoodHabitz stehen auf `verified: false` (Stellen nur noch über BA). Bleibende Fehler je Lauf: ~14 Seiten mit 403/fetch failed (bekannt, hingenommen).
+- Geprüft: `npm run check`, `test-form-conversation.cjs`, `test-form-navigation.ts`, `test-application-e2e.ts` grün. Temporärer Railway-SSH-Schlüssel `martin-check-diagnostic` wieder entfernt.
+- **Noch offen / Vorschläge:** Schwelle 6 lässt vertragsnahe Stellen mit 4–5 (Toyota Kreditbank Vertragsverwaltung, Forderungsmanagement Köln) weg → Skala schärfen oder `MIN_SCORE=5`. Automatische Entdeckung neuer Firmen im Umkreis (wöchentlicher Websuche-Lauf) bleibt zurückgestellt.
+
 
 ### Kliemt / HRworks nach Martins Screenshot um 22:42 (2026-10-06)
 - Aleksa bestätigt: REWE funktioniert inzwischen. Kliemt zeigte dagegen nur die Stellenübersicht mit „Upload noch nicht bestätigt“. Ursache war die allgemeine Erkennung `E-Mail + zwei Textfelder`: das globale Kontaktformular wurde als Bewerbungsformular akzeptiert. Die gespeicherte HTML-Stelle enthielt außerdem nur die Listen-URL und keinen Standort/Einzeltext.

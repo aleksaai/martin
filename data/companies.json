@@ -313,9 +313,9 @@
    "slug": "dentons-europe",
    "feed_url": "https://apply.workable.com/api/v1/widget/accounts/dentons-europe"
   },
-  "verified": true,
+  "verified": false,
   "job_count": 76,
-  "notes": "Workable-Konto Dentons Europe (inkl. Deutschland). Feed am 05.10.2026 mit Status 200 abgerufen; Workable antwortet bei vielen Abrufen schnell mit 429 (Rate-Limit), daher langsam abfragen."
+  "notes": "Workable sperrt die Railway-IP dauerhaft (429 mit Retry-After 20 h, geprüft 07.10.2026 aus dem Container). Feed deshalb abgeschaltet; Stellen dieser Firma kommen nur noch über die BA-Suche. Lokal (Mac) antwortet der Feed normal."
  },
  {
   "name": "Hoffmann Liebs",
@@ -1803,9 +1803,9 @@
    "slug": "usercentrics",
    "feed_url": "https://apply.workable.com/api/v1/widget/accounts/usercentrics"
   },
-  "verified": true,
+  "verified": false,
   "job_count": 42,
-  "notes": "Consent-Management. Feed am 05.10.2026 mit Status 200 abgerufen; Workable antwortet bei vielen Abrufen schnell mit 429 (Rate-Limit), daher langsam abfragen."
+  "notes": "Workable sperrt die Railway-IP dauerhaft (429 mit Retry-After 20 h, geprüft 07.10.2026 aus dem Container). Feed deshalb abgeschaltet; Stellen dieser Firma kommen nur noch über die BA-Suche. Lokal (Mac) antwortet der Feed normal."
  },
  {
   "name": "Kertos",
@@ -2525,9 +2525,9 @@
    "slug": "mondu",
    "feed_url": "https://apply.workable.com/api/v1/widget/accounts/mondu"
   },
-  "verified": true,
+  "verified": false,
   "job_count": 2,
-  "notes": "Feed am 05.10.2026 mit Status 200 abgerufen; Workable antwortet bei vielen Abrufen schnell mit 429 (Rate-Limit), daher langsam abfragen."
+  "notes": "Workable sperrt die Railway-IP dauerhaft (429 mit Retry-After 20 h, geprüft 07.10.2026 aus dem Container). Feed deshalb abgeschaltet; Stellen dieser Firma kommen nur noch über die BA-Suche. Lokal (Mac) antwortet der Feed normal."
  },
  {
   "name": "Upvest",
@@ -2959,9 +2959,9 @@
    "slug": "goodhabitz",
    "feed_url": "https://apply.workable.com/api/v1/widget/accounts/goodhabitz"
   },
-  "verified": true,
+  "verified": false,
   "job_count": 18,
-  "notes": "Feed am 05.10.2026 mit Status 200 abgerufen; Workable antwortet bei vielen Abrufen schnell mit 429 (Rate-Limit), daher langsam abfragen."
+  "notes": "Workable sperrt die Railway-IP dauerhaft (429 mit Retry-After 20 h, geprüft 07.10.2026 aus dem Container). Feed deshalb abgeschaltet; Stellen dieser Firma kommen nur noch über die BA-Suche. Lokal (Mac) antwortet der Feed normal."
  },
  {
   "name": "TeamViewer",

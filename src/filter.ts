@@ -5,13 +5,16 @@ import type { RawJob } from './types.ts';
 import type { Store } from './store.ts';
 import type { Place } from './prefs.ts';
 
-const STUDENT = /werk\s?student|working student|student(ische[rnm]?)?\s*(hilfskraft|mitarbeit|aushilfe|assistent|assistant|job)|studentjob|student worker|wissenschaftliche[rnm]?\s+mitarbeiter|wiss\.\s*mitarbeiter|studierende/i;
+// Gender-Schreibweisen (Mitarbeiter*in, Mitarbeiter:in, Mitarbeiter/in) und Substantiv „Mitarbeit“ zählen mit
+const STUDENT = /werk\s?student|working student|student(ische[rnm]?)?\s*(hilfskraft|mitarbeit|aushilfe|assistent|assistant|job)|studentjob|student worker|student trainee|wissenschaftliche[rnm]?[*:/_]?[rn]?\s+mitarbeit|wiss\.\s*mitarbeit|studierende/i;
 // Rollen, die trotz Treffer sicher nicht passen
 const NOT_FOR_HIM = /ausbildung|azubi|duales studium|dualer student|abschlussarbeit|masterarbeit|bachelorarbeit|thesis|referendar|rechtsreferendar|vollzeit.*(senior|lead)|(senior|lead|head of)\b/i;
 
 export function studentCheck(job: RawJob): string | null {
   if (!STUDENT.test(job.title)) return 'keine Studentenrolle';
-  if (NOT_FOR_HIM.test(job.title)) return 'Ausbildung/Abschlussarbeit/Referendariat';
+  // Kombi-Anzeigen wie „Referendariat / wissenschaftliche Mitarbeit“ bieten auch seine Rolle an
+  const title = /mitarbeit/i.test(job.title) ? job.title.replace(/rechts?referendar\w*/gi, '') : job.title;
+  if (NOT_FOR_HIM.test(title)) return 'Ausbildung/Abschlussarbeit/Referendariat';
   return null;
 }
 

@@ -62,7 +62,7 @@ export async function prepareApplication(store: Store, chatId: string, job: Stor
 
     // Bewerbungsweg: Mail aus der Anzeige, sonst Formular beim Arbeitgeber, sonst Link
     let applyUrl = job.url;
-    if (job.source === 'ba') {
+    if (job.source === 'ba' || /linkedin\.com/i.test(job.url)) {
       await status.step('Suche die Original-Anzeige beim Arbeitgeber …');
       applyUrl = (await findOriginalPosting(job)) ?? job.url;
     }
@@ -79,7 +79,7 @@ export async function prepareApplication(store: Store, chatId: string, job: Stor
       how = `🤖 Soll ich mich für dich bewerben? Ich fülle das Formular bei ${esc(job.company)} aus, lade beide PDFs hoch und schicke dir einen Screenshot. Abgeschickt wird erst, wenn du zustimmst.`;
       rows.push([button('🤖 Für mich bewerben', `form:${ref}`)]);
     } else if (/linkedin\.com/i.test(applyUrl)) {
-      how = `🔗 Die Stelle läuft über LinkedIn. Dort bewirbst du dich mit deinem Konto selbst: Anschreiben-PDF und Lebenslauf von oben anhängen oder, wenn LinkedIn auf die Firmenseite weiterleitet, mir den Link dorthin schicken, dann fülle ich das Formular aus.\n${esc(applyUrl)}`;
+      how = `🔗 Eine eigene Online-Anzeige von ${esc(job.company)} habe ich nicht gefunden, die Stelle läuft wohl nur über LinkedIn. Dort bewirbst du dich mit deinem Konto selbst und hängst Anschreiben-PDF und Lebenslauf von oben an. Findest du doch einen Link zur Firmenseite, schick ihn mir, dann fülle ich das Formular aus.\n${esc(applyUrl)}`;
     } else if (/arbeitsagentur\.de/.test(applyUrl)) {
       how = `🔗 Diese Stelle gibt es nur bei der Arbeitsagentur, eine eigene Online-Anzeige des Arbeitgebers habe ich nicht gefunden. Den Bewerbungsweg zeigt die Arbeitsagentur erst nach einer Sicherheitsabfrage: Anzeige öffnen, ganz unten bei „Informationen zur Bewerbung“ die Zeichen eingeben, dann siehst du Mail oder Link.\n${esc(applyUrl)}`;
     } else {

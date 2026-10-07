@@ -7,6 +7,7 @@ import { extraCompanies, loadPrefs, origins, prefsForScoring } from './prefs.ts'
 import { enrichBa, listBa } from './sources/ba.ts';
 import { enrichAts, listCompany } from './sources/ats.ts';
 import { enrichHtml, listHtml } from './sources/html.ts';
+import { enrichLinkedin, listLinkedin } from './sources/linkedin.ts';
 import type { Store } from './store.ts';
 import type { Company, RawJob, StoredJob } from './types.ts';
 
@@ -21,6 +22,7 @@ function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
 async function enrich(job: RawJob, company?: Company): Promise<RawJob> {
   if (job.source === 'ba') return enrichBa(job);
   if (job.source === 'html') return enrichHtml(job);
+  if (job.source === 'linkedin') return enrichLinkedin(job);
   return company ? enrichAts(job, company) : job;
 }
 
@@ -47,6 +49,16 @@ export async function runOnce(store: Store, log = console.log): Promise<RunRepor
       report.bySource.ba = ba.length;
     } catch (e) {
       report.errors.push(`BA: ${(e as Error).message}`);
+    }
+  }
+
+  if (!cfg.sourcesOff.includes('linkedin')) {
+    try {
+      const li = await listLinkedin(places);
+      jobs.push(...li.map((job) => ({ job })));
+      report.bySource.linkedin = li.length;
+    } catch (e) {
+      report.errors.push(`LinkedIn: ${(e as Error).message.slice(0, 120)}`);
     }
   }
 

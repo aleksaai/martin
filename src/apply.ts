@@ -597,9 +597,14 @@ async function startFormAttempt(store: Store, chatId: string, job: StoredJob, re
   const dropWait = () => (wait ? tg('deleteMessage', { chat_id: chatId, message_id: wait.message_id }).catch(() => {}) : undefined);
   let applyUrl = (await store.kvGet(`apply_url:${job.id}`)) ?? job.url;
   // Nie auf Seiten der Arbeitsagentur (Captcha) oder Konto-Portalen ausfüllen: erst die Original-Anzeige suchen
-  if (/arbeitsagentur\.de/.test(applyUrl)) {
+  if (/arbeitsagentur\.de|linkedin\.com/i.test(applyUrl)) {
     applyUrl = (await findOriginalPosting(job)) ?? applyUrl;
     await store.kvSet(`apply_url:${job.id}`, applyUrl);
+  }
+  if (/linkedin\.com/i.test(applyUrl)) {
+    if (wait) await tg('deleteMessage', { chat_id: chatId, message_id: wait.message_id }).catch(() => {});
+    await tg('sendMessage', { chat_id: chatId, text: `Für diese Stelle finde ich keine eigene Online-Anzeige von ${job.company}, nur die bei LinkedIn. Dort bewirbst du dich mit deinem Konto selbst und hängst die beiden PDFs an. Ich habe nichts abgeschickt.` });
+    return { ok: false, offen: [], captcha: false, note: 'nur LinkedIn-Anzeige, Martin wurde informiert' };
   }
   if (/arbeitsagentur\.de/i.test(applyUrl)) {
     if (wait) await tg('deleteMessage', { chat_id: chatId, message_id: wait.message_id }).catch(() => {});

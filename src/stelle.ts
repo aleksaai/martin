@@ -4,25 +4,11 @@ import { createHash } from 'node:crypto';
 import Anthropic from '@anthropic-ai/sdk';
 import { prepareApplication } from './bewerbung.ts';
 import { cfg } from './config.ts';
-import { fetchText, stripHtml } from './http.ts';
+import { fetchPosting } from './sources/linkedin.ts';
 import type { Store } from './store.ts';
 import type { StoredJob, WorkMode } from './types.ts';
 
 const client = new Anthropic({ apiKey: cfg.anthropicKey });
-// Viele Stellenseiten liefern Bots eine leere Hülle; mit Browser-Kennung kommt der Text
-const BROWSER_UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Safari/537.36';
-
-/** LinkedIn-Anzeigen sind hinter dem Login, der Gast-Endpunkt liefert dieselbe Anzeige ohne Konto. */
-export function postingUrl(url: string): string {
-  const li = /linkedin\.com\/.*?(?:jobs\/view\/(?:[^/?]*-)?|currentJobId=)(\d{6,})/i.exec(url);
-  return li ? `https://www.linkedin.com/jobs-guest/jobs/api/jobPosting/${li[1]}` : url;
-}
-
-export async function fetchPosting(url: string): Promise<string> {
-  const html = await fetchText(postingUrl(url), { headers: { 'User-Agent': BROWSER_UA } }, 25_000);
-  return stripHtml(html).slice(0, 12_000);
-}
-
 export interface OwnJobInput { link?: string; text?: string; firma?: string; titel?: string; ort?: string }
 
 async function classify(text: string): Promise<{ firma: string; titel: string; ort: string; mode: WorkMode }> {

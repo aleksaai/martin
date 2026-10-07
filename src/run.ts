@@ -8,6 +8,7 @@ import { enrichBa, listBa } from './sources/ba.ts';
 import { enrichAts, listCompany } from './sources/ats.ts';
 import { enrichHtml, listHtml } from './sources/html.ts';
 import { enrichLinkedin, listLinkedin } from './sources/linkedin.ts';
+import { enrichPortal, PORTAL_SOURCES, PORTALS } from './sources/portale.ts';
 import type { Store } from './store.ts';
 import type { Company, RawJob, StoredJob } from './types.ts';
 
@@ -19,8 +20,9 @@ function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
   return Promise.race([p, new Promise<T>((_, rej) => setTimeout(() => rej(new Error(`Zeitüberschreitung nach ${ms / 1000} s`)), ms))]);
 }
 
-async function enrich(job: RawJob, company?: Company): Promise<RawJob> {
+async function enrich(job: RawJob, store: Store, company?: Company): Promise<RawJob> {
   if (job.source === 'ba') return enrichBa(job);
+  if (PORTAL_SOURCES.has(job.source)) return enrichPortal(job, store);
   if (job.source === 'html') return enrichHtml(job);
   if (job.source === 'linkedin') return enrichLinkedin(job);
   return company ? enrichAts(job, company) : job;
@@ -59,6 +61,18 @@ export async function runOnce(store: Store, log = console.log): Promise<RunRepor
       report.bySource.linkedin = li.length;
     } catch (e) {
       report.errors.push(`LinkedIn: ${(e as Error).message.slice(0, 120)}`);
+    }
+  }
+
+  // Juristische Jobportale, jede Quelle für sich
+  for (const portal of PORTALS) {
+    if (cfg.sourcesOff.includes(portal.source)) continue;
+    try {
+      const list = await portal.list(store, places);
+      jobs.push(...list.map((job) => ({ job })));
+      report.bySource[portal.source] = list.length;
+    } catch (e) {
+      report.errors.push(`${portal.source}: ${(e as Error).message.slice(0, 120)}`);
     }
   }
 
@@ -113,14 +127,14 @@ export async function runOnce(store: Store, log = console.log): Promise<RunRepor
     let place = await placeCheck(job, store, places);
     // Zu weit: vielleicht trotzdem remote. Beschreibung holen und nachsehen.
     if (!place.ok && place.reason?.startsWith('zu weit')) {
-      job = await enrich(job, company);
+      job = await enrich(job, store, company);
       if (REMOTE_HINT.test(`${job.title} ${job.description ?? ''}`)) place = { ...place, ok: true };
     }
     if (!place.ok) {
       await store.saveJob({ ...base, distance_km: place.distance, skip_reason: place.reason ?? 'Ort' });
       return;
     }
-    if (!job.description) job = await enrich(job, company);
+    if (!job.description) job = await enrich(job, store, company);
 
     const placeText = place.near ? `${place.label} (${place.near}${place.inRadius ? ', im Suchgebiet' : ', außerhalb des Suchgebiets'})` : place.label;
     try {

@@ -10,7 +10,7 @@ import type { StoredJob } from './types.ts';
 // Portale mit Konto-Pflicht: dort bewirbt Martin sich selbst über den Link.
 // BA-Stellen gehen, wenn die Original-Anzeige beim Arbeitgeber gefunden wurde (findOriginalPosting).
 // Portale mit Konto (Workday, SuccessFactors …) gehen über den Konto-Ablauf in apply.ts. Nur die Arbeitsagentur nicht (Captcha).
-export const canFillForm = (_source: string, url: string) => !/arbeitsagentur\.de/.test(url);
+export const canFillForm = (_source: string, url: string) => !/arbeitsagentur\.de|linkedin\.com/i.test(url);
 
 /** Statuszeile wie bei den anderen Agenten: eine Nachricht, die die Schritte zeigt und am Ende verschwindet. */
 async function statusLine(chatId: string, first: string) {
@@ -74,10 +74,12 @@ export async function prepareApplication(store: Store, chatId: string, job: Stor
       await status.step('Schreibe die Begleitmail …');
       const mail = await writeMail(job);
       how = `📧 Die Anzeige nennt <b>${esc(email)}</b>. Begleitmail ist vorbereitet, Anschreiben und Lebenslauf hängst du als PDF an. Falls die Firma zusätzlich ein Online-Formular hat, kann ich das ausfüllen:\n\n${esc(mail)}`;
-      rows.push([button('🤖 Online-Formular suchen', `form:${ref}`)]);
+      if (canFillForm(job.source, applyUrl)) rows.push([button('🤖 Online-Formular suchen', `form:${ref}`)]);
     } else if (canFillForm(job.source, applyUrl)) {
       how = `🤖 Soll ich mich für dich bewerben? Ich fülle das Formular bei ${esc(job.company)} aus, lade beide PDFs hoch und schicke dir einen Screenshot. Abgeschickt wird erst, wenn du zustimmst.`;
       rows.push([button('🤖 Für mich bewerben', `form:${ref}`)]);
+    } else if (/linkedin\.com/i.test(applyUrl)) {
+      how = `🔗 Die Stelle läuft über LinkedIn. Dort bewirbst du dich mit deinem Konto selbst: Anschreiben-PDF und Lebenslauf von oben anhängen oder, wenn LinkedIn auf die Firmenseite weiterleitet, mir den Link dorthin schicken, dann fülle ich das Formular aus.\n${esc(applyUrl)}`;
     } else if (/arbeitsagentur\.de/.test(applyUrl)) {
       how = `🔗 Diese Stelle gibt es nur bei der Arbeitsagentur, eine eigene Online-Anzeige des Arbeitgebers habe ich nicht gefunden. Den Bewerbungsweg zeigt die Arbeitsagentur erst nach einer Sicherheitsabfrage: Anzeige öffnen, ganz unten bei „Informationen zur Bewerbung“ die Zeichen eingeben, dann siehst du Mail oder Link.\n${esc(applyUrl)}`;
     } else {

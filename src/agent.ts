@@ -13,6 +13,7 @@ import { companyFromUrl, extraCompanies, loadPrefs, prefsText, savePrefs } from 
 import { listCompany } from './sources/ats.ts';
 import { listHtml } from './sources/html.ts';
 import { documentList } from './uploads.ts';
+import { addOwnJob } from './stelle.ts';
 
 const client = new Anthropic({ apiKey: cfg.anthropicKey });
 const HISTORY = 24;
@@ -22,7 +23,7 @@ const OBSERVER_NOTE = `WICHTIG: Du schreibst gerade NICHT mit Martin, sondern mi
 Beobachter mit, um zu prüfen, ob alles läuft. Sprich ihn mit „Aleksa“ an (Ton weiter Feldwebel, aber als Meldung an den Vorgesetzten).
 Du kannst ihm Lagebericht und Sucheinstellungen zeigen und Fragen beantworten. Ändern darfst du in diesem Chat nichts: kein
 Eintragen, Merken, Formular, Anschreiben. Will er etwas ändern, sag ihm, dass Martin das in seinem Chat tun muss.`;
-const SENDS_ITSELF = new Set(['formular_oeffnen', 'formular_ergaenzen', 'formular_weiter', 'anschreiben_aendern']);
+const SENDS_ITSELF = new Set(['formular_oeffnen', 'formular_ergaenzen', 'formular_weiter', 'anschreiben_aendern', 'stelle_anlegen']);
 
 type Msg = { role: 'user' | 'assistant'; content: string };
 
@@ -100,6 +101,15 @@ const TOOLS: Anthropic.Tool[] = [
     input_schema: { type: 'object' as const, properties: { name: { type: 'string' }, karriereseite: { type: 'string' } }, required: ['name', 'karriereseite'] },
   },
   {
+    name: 'stelle_anlegen',
+    description: 'Für eine Stelle, die Martin selbst gefunden hat (LinkedIn, Indeed, Firmenseite, Empfehlung): legt sie an und startet sofort die Bewerbungsvorbereitung wie bei einem Treffer (Anschreiben als PDF in Martins Stil, Lebenslauf, Bewerbungsweg mit Knöpfen). Link angeben, wenn Martin einen schickt; ohne Link den eingefügten Anzeigentext als text. Firma/Titel/Ort nur, wenn Martin sie nennt oder die Seite nicht lesbar war.',
+    input_schema: { type: 'object' as const, properties: {
+      link: { type: 'string', description: 'URL der Anzeige' },
+      text: { type: 'string', description: 'Anzeigentext, falls Martin ihn eingefügt hat' },
+      firma: { type: 'string' }, titel: { type: 'string' }, ort: { type: 'string' },
+    } },
+  },
+  {
     name: 'merken',
     description: 'Speichert eine Angabe dauerhaft in Martins Profil-Datenbank (fließt in alle künftigen Anschreiben und Formulare ein). NUR aufrufen, wenn Martin ausdrücklich zugestimmt hat.',
     input_schema: { type: 'object' as const, properties: { fakt: { type: 'string', description: 'Ein Satz, z.B. "Frühester Starttermin: 1.11.2026"' } }, required: ['fakt'] },
@@ -131,6 +141,10 @@ Was du tun kannst:
 - Offene Bewerbungsformulare mit seinen Angaben ergänzen (formular_ergaenzen). Danach schickt das System selbst einen Screenshot,
   du antwortest dann höchstens mit einem kurzen Satz oder einer Rückfrage.
 - Das Anschreiben der aktuellen Bewerbung ändern (anschreiben_aendern).
+- Schickt Martin einen Link zu einer Stelle oder fügt den Anzeigentext ein (LinkedIn, Indeed, Firmenseite, Tipp von Bekannten):
+  sofort stelle_anlegen aufrufen, nicht erst nachfragen. Das System holt die Anzeige, schreibt das Anschreiben in seinem Stil als
+  PDF, schickt den Lebenslauf dazu und zeigt den Bewerbungsweg mit Knöpfen, genau wie bei einem Treffer aus der Suche. Danach
+  gelten anschreiben_aendern und die Formular-Werkzeuge wie gewohnt. War die Seite nicht lesbar, bitte ihn um den kopierten Text.
 - Angaben dauerhaft merken (merken) und löschen (vergessen). Gibt Martin etwas an, das auch für spätere Bewerbungen gilt
   (Starttermin, Wochenstunden, Arbeitstage, Gehaltswunsch, Studium Voll-/Teilzeit, Führerschein ...), frag am Ende kurz,
   ob du dir das merken sollst. merken erst nach seinem Ja. Gespeichertes trägt das System bei jedem künftigen Formular und
@@ -267,6 +281,8 @@ async function runTool(store: Store, chatId: string, name: string, input: any, c
       await store.kvSet('extra_companies', JSON.stringify([...list, company]));
       return `${company.name} ist in der Suche (${company.ats.type === 'html' ? 'Karriereseite' : company.ats.type}), aktuell ${found} Stellen dort insgesamt. Passende kommen beim nächsten Lauf.`;
     }
+    case 'stelle_anlegen':
+      return addOwnJob(store, chatId, { link: input.link, text: input.text, firma: input.firma, titel: input.titel, ort: input.ort });
     case 'merken': {
       const prev = (await store.kvGet('answers')) ?? '';
       const fakt = String(input.fakt ?? '').trim();

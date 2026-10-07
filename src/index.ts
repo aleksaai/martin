@@ -5,6 +5,7 @@ import { createStore } from './store.ts';
 import { sendFollowups } from './bewerbung.ts';
 import { nudgeUndecided } from './tracking.ts';
 import { broadcast, notifyPending, shortRef, startBot } from './telegram.ts';
+import { discoverCompanies, discoveryDue, THEME_COUNT, weekOfYear } from './entdeckung.ts';
 
 const store = createStore();
 await store.init();
@@ -15,6 +16,19 @@ async function run(reason: string): Promise<RunReport> {
   if (running) return running;
   running = (async () => {
     console.log(`Suchlauf (${reason}) startet`);
+    // Wöchentlich vor dem Suchlauf: neue Arbeitgeber im Umkreis entdecken, damit sie gleich mitlaufen
+    if (await discoveryDue(store)) {
+      // Zwei Themen je Woche (ein Thema bringt zwei bis fünf Arbeitgeber), die Themen rotieren mit der Kalenderwoche
+      const added: string[] = [];
+      for (const offset of [0, 1]) {
+        try {
+          const d = await discoverCompanies(store, (weekOfYear() * 2 + offset) % THEME_COUNT);
+          console.log(`Entdeckung (${d.theme.slice(0, 40)}…): ${d.proposed} vorgeschlagen, ${d.checked} geprüft, ${d.added.length} aufgenommen, ${d.rejected.length} verworfen`);
+          added.push(...d.added.map((c) => `${c.name} (${c.job_count} Stellen)`));
+        } catch (e) { console.error('Entdeckung fehlgeschlagen:', (e as Error).message); }
+      }
+      if (added.length) await broadcast(store, `Neue Arbeitgeber in der Suche: ${added.join(', ')}. Passende Stellen kommen mit den nächsten Läufen.`);
+    }
     const r = await runOnce(store);
     await store.kvSet('last_run', new Date().toISOString());
     const sent = await notifyPending(store);

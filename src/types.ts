@@ -18,6 +18,9 @@ export interface Company {
   city?: string;
   ats: { type: string; slug?: string; host?: string; site?: string; feed_url?: string };
   verified?: boolean;
+  /** Datum, an dem die wöchentliche Entdeckung die Firma aufgenommen hat (nur extra_companies). */
+  discovered?: string;
+  job_count?: number | null;
 }
 
 // manuell = Stelle, die Martin selbst gefunden hat (z.B. LinkedIn) und Adolf nur zum Tracking meldet

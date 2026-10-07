@@ -80,5 +80,11 @@ export async function nudgeUndecided(store: Store, newRef: (jobId: string) => Pr
   const text = jobs.length === 1
     ? `Kamerad! Die Stelle bei ${esc(jobs[0].company)} (${esc(jobs[0].title)}) liegt seit gestern unbearbeitet. Bewerben oder wegtreten?`
     : `Kamerad! ${jobs.length} Stellen liegen seit gestern unbearbeitet. Gute Stellen warten nicht. Entscheidung, aber zackig:\n\n${jobs.slice(0, 6).map((j) => `• ${esc(j.company)}: ${esc(j.title)} (${j.score}/10)`).join('\n')}`;
-  for (const s of subs) await tg('sendMessage', { chat_id: s.chat_id, text, parse_mode: 'HTML', reply_markup: { inline_keyboard: rows } }).catch(() => {});
+  // Die Erinnerung ist für Martin; Beobachter (Aleksa) bekommen nur die Liste ohne Knöpfe und ohne Ansprache
+  for (const s of subs) {
+    const observer = (await store.kvGet(`role:${s.chat_id}`)) === 'beobachter';
+    await tg('sendMessage', observer
+      ? { chat_id: s.chat_id, text: `👁 Erinnerung an Martin: ${jobs.length} ${jobs.length === 1 ? 'Stelle liegt' : 'Stellen liegen'} seit gestern unbearbeitet (${jobs.slice(0, 6).map((j) => esc(j.company)).join(', ')}).`, parse_mode: 'HTML' }
+      : { chat_id: s.chat_id, text, parse_mode: 'HTML', reply_markup: { inline_keyboard: rows } }).catch(() => {});
+  }
 }

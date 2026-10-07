@@ -1,5 +1,9 @@
 # HANDOFF: Martins Jobradar (Stand 2026-10-07 mittags, enneo MacBook)
 
+### Erster Lauf mit allen neuen Quellen (2026-10-07, 17 Uhr) + Beobachter-Korrektur
+- 9.218 abgerufen, 766 neu, 99 bewertet, 35 Treffer, 15 gemeldet (`MAX_PER_RUN`), 20 kommen mit den Läufen am 08.10. nach. Entdeckung: 7 Arbeitgeber aufgenommen (Kerberos, MTR Legal, Bildungsinnovator, iusta, BWI, ECOVIS KSO, FIDAIX), drei davon sofort mit 9/10-Treffer.
+- Beobachter-Karten tragen 👁 und bewusst keine Knöpfe (Absicht, Aleksa 07.10. gefragt). Die 24-h-Erinnerung „Kamerad! … unbearbeitet“ ging dagegen mit Knöpfen auch an Beobachter → jetzt bekommen Beobachter nur eine 👁-Zeile ohne Knöpfe (`nudgeUndecided`, Rolle aus `kv role:<chat>`).
+
 ### Neue Arbeitgeber automatisch entdecken (2026-10-07 abends, Aleksa: „das als nächstes“)
 - `src/entdeckung.ts`: vor dem ersten Suchlauf, wenn `kv discovery_last` älter als 6 Tage ist (`discoveryDue`, Schalter `DISCOVERY=off`), sucht Sonnet (`LETTER_MODEL`) per Anthropic-Websuche (bis 14 Suchschritte) Arbeitgeber zu **zwei Themen** der Woche (fünf Themen rotieren mit der Kalenderwoche: Kanzleien, Rechtsabteilungen/Compliance, Legal Tech + Software, Steuer/WP/Compliance-Beratung, Verbände/öffentliche Arbeitgeber) im Raum Köln/Bonn/Düsseldorf/Aachen/Leverkusen plus Martins Zusatzorte. Ausschlussliste = regionale Namen aus `companies.json` + `extra_companies` + `kv discovery_rejected`.
 - Jede Kandidatin wird mit `companyFromUrl` eingeordnet und **sofort abgerufen** (Karriereseite per `listHtml`, ATS per `listCompany`, 45 s); nur Seiten mit mindestens einer lesbaren Stelle landen in `extra_companies` (`city: 'entdeckt'`, `discovered`, `job_count`) und laufen ab dann in jedem Suchlauf mit. Höchstens 8 neue je Thema, 25 Prüfungen. Verworfene Namen (nicht lesbar, 0 Stellen, Jobportal-URL) merkt `discovery_rejected`, damit sie nicht jede Woche neu geprüft werden.

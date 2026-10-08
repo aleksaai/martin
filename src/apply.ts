@@ -9,7 +9,7 @@ import type { BrowserContext, Frame, Page } from 'playwright';
 import { createFormContext } from './browser.ts';
 import { expandFormSections, displayedFilename, uploadPortalDocuments } from './form-portals.ts';
 import { cfg } from './config.ts';
-import { hasApplicationForm, followPosting } from './form-navigation.ts';
+import { hasApplicationForm, followPosting, botBlock, NEXT_STEP } from './form-navigation.ts';
 import { CONTACT, fileSafe, letterPdf } from './documents.ts';
 import { materialize } from './uploads.ts';
 import { findOriginalPosting, PROFILE } from './llm.ts';
@@ -23,7 +23,7 @@ const client = new Anthropic({ apiKey: cfg.anthropicKey });
 
 interface Field { id: string; frame: number; kind: string; label: string; required: boolean; options?: string[]; value?: string; maxLength?: number; checked?: boolean }
 interface Plan { fill: { id: string; value: string }[]; files: { id: string; doc: string }[]; check: string[]; consent: string[]; offen: string[] }
-interface Session { job: StoredJob; chatId: string; ref: string; context: BrowserContext; page: Page; fields: Field[]; plan: Plan; files: Record<string, string[]>; timer: NodeJS.Timeout; extra: string; ready?: boolean; review?: string; issues?: string[] }
+interface Session { job: StoredJob; chatId: string; ref: string; context: BrowserContext; page: Page; fields: Field[]; plan: Plan; files: Record<string, string[]>; timer: NodeJS.Timeout; extra: string; ready?: boolean; review?: string; issues?: string[]; steps?: number; docsDone?: Set<string>; clicked?: Set<string> }
 
 const sessions = new Map<string, Session>();
 
@@ -44,6 +44,15 @@ async function dismissCookies(page: Page) {
 }
 
 const hasForm = hasApplicationForm;
+
+/** Das Portal sperrt automatische Browser. Wird nie umgangen; kein zweiter Versuch. */
+export class BotBlocked extends Error {
+  constructor(public kind: string, public host: string) { super(`Bot-Sperre: ${kind} (${host})`); }
+}
+async function assertNotBlocked(page: Page) {
+  const kind = await botBlock(page);
+  if (kind) throw new BotBlocked(kind, new URL(page.url()).hostname);
+}
 
 class LoginRequired extends Error {
   constructor(public portal: string, public registerUrl: string | null, public loginUrl: string, public failed = false) { super('Login nötig'); }
@@ -83,9 +92,10 @@ async function handleLogin(store: Store, page: Page) {
   if (await loginFrame(page)) throw new LoginRequired(portal, null, page.url(), true);
 }
 
-async function openForm(page: Page, url: string, store?: Store, job?: StoredJob) {
+export async function openForm(page: Page, url: string, store?: Store, job?: StoredJob) {
   await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 45_000 });
   await page.waitForTimeout(2500);
+  await assertNotBlocked(page);
   await dismissCookies(page);
   if (store) await handleLogin(store, page);
   await expandFormSections(page);
@@ -120,10 +130,12 @@ async function openForm(page: Page, url: string, store?: Store, job?: StoredJob)
     if (!clicked) break;
     await page.waitForLoadState('domcontentloaded').catch(() => {});
     await page.waitForTimeout(3000);
+    await assertNotBlocked(page);
     await dismissCookies(page);
     if (store) await handleLogin(store, page);
     await expandFormSections(page);
   }
+  await assertNotBlocked(page);
   if (!(await hasForm(page))) throw new Error('Noch kein belegtes Bewerbungsformular erreicht');
 }
 
@@ -287,7 +299,9 @@ async function applyPlan(s: Session, letter: string): Promise<string[]> {
   const sharedIds = new Set<string>();
   if (!portalUploads && shared.length === 1) {
     const f=shared[0]; const input=frameOf(s,f.id)!.locator(`[data-jr="${f.id}"]`);
-    const paths=[...(s.files.lebenslauf??[]),...(s.files.anschreiben??[]),...(s.files.weitere??[])];
+    // Hat das Formular daneben ein eigenes Lebenslauf-Feld, kommt der Lebenslauf nicht noch einmal in die Sammelablage
+    const ownCv = s.plan.files.some(x => x.doc === 'lebenslauf' && x.id !== f.id);
+    const paths=[...(ownCv ? [] : s.files.lebenslauf??[]),...(s.files.anschreiben??[]),...(s.files.weitere??[])];
     for (const path of [...new Set(paths)].slice(0,5)) {
       if (await displayedFilename(s.page,[path])) continue;
       await input.setInputFiles(path,{timeout:10000});
@@ -365,7 +379,7 @@ async function submitControl(s: Session) {
   const fi = [...counts.entries()].sort((a,b)=>b[1]-a[1])[0]?.[0] ?? 0;
   const fr = s.page.frames()[fi];
   if (!fr) return null;
-  const name = /^\s*(?:bewerbung (?:ab)?senden|jetzt bewerben|bewerben|absenden|senden|submit(?: application)?|send application|apply)\s*$/i;
+  const name = /^\s*(?:bewerbung (?:ab)?senden|bewerbung abschicken|abschicken|jetzt bewerben|bewerben|absenden|senden|submit(?: application)?|send application|apply)\s*$/i;
   const buttons = fr.getByRole('button',{name}).filter({visible:true});
   if(await buttons.count())return buttons.last();
   // HRworks renders its final action as an anchor without href or button role.
@@ -379,6 +393,19 @@ function armSession(s: Session) {
   s.timer.unref();
 }
 
+/** Portale formatieren Eingaben um (Telefon "+49 176 …" → "0176 …", Datum, Leerzeichen). Inhaltlich gleich zählt als übernommen. */
+export function sameValue(expected: string, actual: string): boolean {
+  const e = expected.trim(), a = actual.trim();
+  if (e === a || e.replace(/\s+/g, ' ').toLowerCase() === a.replace(/\s+/g, ' ').toLowerCase()) return true;
+  const de = e.replace(/\D/g, ''), da = a.replace(/\D/g, '');
+  if (de.length >= 6 && /^[\d\s()+\-./]+$/.test(e) && /^[\d\s()+\-./]*$/.test(a)) {
+    // Telefon: Ländervorwahl kann in einem eigenen Feld stehen, aus 49 wird 0
+    const local = (d: string) => d.replace(/^0049/, '').replace(/^49(?=1|2|3|4|5|6|7|8|9)/, '').replace(/^0/, '');
+    return local(de) === local(da) && local(da).length >= 6;
+  }
+  return false;
+}
+
 async function verifyFields(s: Session): Promise<string[]> {
   const issues: string[] = [];
   for (const field of s.fields) {
@@ -389,7 +416,11 @@ async function verifyFields(s: Session): Promise<string[]> {
     const value = await locator.inputValue().catch(() => '');
     if (expected && expected.value !== '__ANSCHREIBEN__') {
       const actual = field.kind === 'select' ? await locator.locator('option:checked').innerText() : value;
-      if (actual.trim() !== expected.value.trim()) issues.push(`Nicht übernommen: ${field.label.slice(0,100)}`);
+      // Freiwillige Felder, die das Portal nicht annimmt (eigene Aufklapplisten u. a.), blockieren die Bewerbung nicht
+      if (!sameValue(expected.value, actual)) {
+        if (field.required) issues.push(`Nicht übernommen: ${field.label.slice(0,100)}`);
+        else console.log(`Freiwilliges Feld nicht übernommen, bleibt leer: ${field.label.slice(0,100)}`);
+      }
     }
     if (s.plan.check.includes(field.id) && !(await locator.isChecked())) issues.push(`Auswahl nicht übernommen: ${field.label.slice(0,100)}`);
     if (field.required) {
@@ -411,6 +442,16 @@ function close(ref: string) {
 
 export interface FormResult { ok: boolean; state?: 'ready' | 'needs_answers' | 'blocked'; ready?: boolean; offen: string[]; captcha: boolean; note?: string }
 
+/** Sichtbarer Weiter-Knopf eines mehrstufigen Formulars (nie ein Absenden-Knopf). */
+async function nextStepButton(page: Page) {
+  for (const frame of page.frames()) {
+    // Akkordeon-Formulare (softgarden) lassen frühere Weiter-Knöpfe stehen: der letzte ist der aktuelle Schritt
+    const btn = frame.getByRole('button', { name: NEXT_STEP }).filter({ visible: true });
+    if (await btn.count()) return btn.last();
+  }
+  return null;
+}
+
 async function fillAndReport(store: Store, s: Session): Promise<FormResult> {
   const app = await store.getApplication(s.job.id);
   const letter = app?.letter ?? '';
@@ -418,14 +459,16 @@ async function fillAndReport(store: Store, s: Session): Promise<FormResult> {
   await expandFormSections(s.page);
   await uploadPortalDocuments(s.page, s.files);
   s.fields = await collectFields(s.page);
-  if (!s.fields.length || !(await hasForm(s.page))) {
+  if (!s.fields.length || (!s.steps && !(await hasForm(s.page)))) {
     await tg('sendMessage', { chat_id: s.chatId, text: 'Ich konnte das Bewerbungsformular noch nicht sicher erkennen. Deine Angaben bleiben gespeichert; ich gebe die Bewerbung noch nicht zum Absenden frei.' });
     throw new Error('Bewerbungsformular noch nicht erkannt');
   }
   s.plan = await planFill(s.job, s.fields, letter, [standing, s.extra].filter(Boolean).join('\n'), Object.keys(s.files).filter((k) => s.files[k].length));
   await applyPlan(s, letter);
   s.issues = await verifyFields(s);
-  const missingDocs = async () => !(await displayedFilename(s.page,s.files.lebenslauf??[])) || (!!s.files.anschreiben?.length && !(await displayedFilename(s.page,s.files.anschreiben)));
+  // Bei mehrstufigen Formularen wurden die Dokumente schon in einem früheren Schritt bestätigt
+  const shown = async (doc: string) => !!s.docsDone?.has(doc) || await displayedFilename(s.page, s.files[doc] ?? []);
+  const missingDocs = async () => !(await shown('lebenslauf')) || (!!s.files.anschreiben?.length && !(await shown('anschreiben')));
   const technical = () => s.issues!.filter(issue=>!issue.startsWith('Pflichtfeld offen:') || !s.plan.offen.length);
   if (technical().length || await missingDocs()) {
     console.log(`Formular-Reparatur ${s.job.company}: ${technical().join('; ') || 'Dokumente'}`);
@@ -438,6 +481,22 @@ async function fillAndReport(store: Store, s: Session): Promise<FormResult> {
     if (technical().length || await missingDocs()) throw new Error(`Formularprüfung: ${technical().join('; ') || 'Upload bleibt unbestätigt'}`);
   }
   if (!await submitControl(s)) {
+    // Mehrstufiges Formular (softgarden, Workday …): ist dieser Schritt vollständig, selbst weiterklicken
+    const next = await nextStepButton(s.page);
+    // Jeden Weiter-Knopf je Seite nur einmal: bleibt die Seite gleich, nicht im Kreis klicken
+    const stepKey = next ? `${s.page.url().split('#')[0]}|${(await next.innerText().catch(() => '')).trim()}` : '';
+    if (next && !s.clicked?.has(stepKey) && !s.plan.offen.length && !technical().length && (s.steps ?? 0) < 6) {
+      (s.clicked ??= new Set()).add(stepKey);
+      s.docsDone ??= new Set();
+      for (const doc of ['lebenslauf', 'anschreiben']) if (await shown(doc)) s.docsDone.add(doc);
+      s.steps = (s.steps ?? 0) + 1;
+      console.log(`Formular ${s.job.company}: Schritt ${s.steps} fertig, weiter zu Schritt ${s.steps + 1}`);
+      await next.click({ timeout: 8000 });
+      await s.page.waitForLoadState('domcontentloaded').catch(() => {});
+      await s.page.waitForTimeout(3500);
+      await assertNotBlocked(s.page);
+      return fillAndReport(store, s);
+    }
     if (!s.plan.offen.length) throw new Error('Absende-Schaltfläche noch nicht sicher erkannt');
     s.issues.push('Absende-Schaltfläche noch nicht sicher erkannt');
   }
@@ -446,8 +505,9 @@ async function fillAndReport(store: Store, s: Session): Promise<FormResult> {
     s.plan.offen.unshift('Diese Anzeige verlangt bereits das erste Staatsexamen. Dein Profil enthält den LL.B. und das laufende Jurastudium. Möchtest du dich trotzdem mit diesen ehrlichen Angaben bewerben?');
   }
   const docs: string[] = [];
-  for (const doc of ['lebenslauf','anschreiben']) if (await displayedFilename(s.page,s.files[doc] ?? [])) docs.push(doc);
-  const captcha = (await s.page.locator('iframe[src*="recaptcha"], iframe[src*="hcaptcha"], iframe[src*="turnstile"]').count()) > 0;
+  for (const doc of ['lebenslauf','anschreiben']) if (await shown(doc)) docs.push(doc);
+  const captcha = (await s.page.locator('iframe[src*="recaptcha"], iframe[src*="hcaptcha"], iframe[src*="turnstile"], .frc-captcha, [data-sitekey]').count()) > 0
+    || await (async () => { try { return (await s.page.getByText(/friendlycaptcha|anti-roboter-verifizierung|ich bin kein roboter|i'?m not a robot/i).count()) > 0; } catch { return false; } })();
   // Kurz und menschlich: was drin ist, sieht Martin auf dem Bild. Nur sagen, was fehlt.
   const uploaded = docs.includes('lebenslauf') && docs.includes('anschreiben') ? 'Lebenslauf und Anschreiben sind geprüft hochgeladen' : 'die Dokument-Uploads sind noch nicht vollständig bestätigt';
   const text = [
@@ -538,7 +598,10 @@ export async function nextFormPage(store: Store, chatId: string): Promise<FormRe
   const s = [...sessions.values()].reverse().find((x) => x.chatId === chatId && (!jobId || x.job.id === jobId));
   if (!s) return null;
   clearTimeout(s.timer); s.ready=false;
-  const btn = s.page.getByRole('button', { name: /^(weiter|nächste|next|continue|fortfahren|speichern und weiter|save and continue)/i }).first();
+  s.docsDone ??= new Set();
+  for (const doc of ['lebenslauf', 'anschreiben']) if (await displayedFilename(s.page, s.files[doc] ?? [])) s.docsDone.add(doc);
+  s.steps = (s.steps ?? 0) + 1;
+  const btn = s.page.getByRole('button', { name: /^(weiter|nächste|next|continue|fortfahren|speichern und weiter|save and continue|zum nächsten schritt)/i }).first();
   if (!(await btn.count())) return { ok: false, offen: s.plan.offen, captcha: false, note: 'kein Weiter-Knopf auf der Seite' };
   await btn.click({ timeout: 8000 });
   await s.page.waitForTimeout(4000);
@@ -573,6 +636,7 @@ export async function startForm(store: Store, chatId: string, job: StoredJob, re
     catch (e) {
       error = (e as Error).message;
       console.error(`Formular ${job.company}, Versuch ${attempt + 1}: ${error.slice(0, 400)}`);
+      if (e instanceof BotBlocked) return reportBotBlock(store, chatId, job, ref, e);
       // Kein Formular, aber eine Bewerbungsadresse in der Anzeige: dann ist Mail der Weg, kein zweiter Browserversuch
       const email = /kein belegtes Bewerbungsformular/.test(error) ? applicationEmail(job.description) : null;
       if (email) {
@@ -583,8 +647,25 @@ export async function startForm(store: Store, chatId: string, job: StoredJob, re
     }
   }
   await store.kvSet(`form_issue:${chatId}:${job.id}`, JSON.stringify({at:new Date().toISOString(),error}));
+  // Ausfall des KI-Dienstes (Guthaben, Überlastung) nicht als Formularproblem tarnen
+  if (/credit balance|overloaded_error|rate_limit_error|"type":"api_error"/i.test(error)) {
+    await tg('sendMessage', {chat_id:chatId, text:`Mein KI-Dienst antwortet gerade nicht, deshalb kann ich das Formular bei ${job.company} nicht ausfüllen. Es wurde nichts abgeschickt. Versuch es später nochmal.`, reply_markup:{inline_keyboard:[[button('Erneut prüfen',`form:${ref}`)]]}});
+    return {ok:false,offen:[],captcha:false,note:'KI-Dienst nicht erreichbar: '+error.slice(0,200)};
+  }
   await tg('sendMessage', {chat_id:chatId, text:`Bei ${job.company} ist die technische Prüfung noch nicht durch. Deine Angaben bleiben gespeichert und es wurde nichts abgeschickt. Ich halte die Bewerbung offen.`, reply_markup:{inline_keyboard:[[button('Erneut prüfen',`form:${ref}`)]]}});
   return {ok:false,offen:[],captcha:false,note:'Technischer Fehler protokolliert; Bewerbung bleibt offen'};
+}
+
+/** Portal sperrt automatische Browser: ehrlich sagen, keinen zweiten Versuch, Mailweg anbieten wenn vorhanden. */
+async function reportBotBlock(store: Store, chatId: string, job: StoredJob, ref: string, e: BotBlocked): Promise<FormResult> {
+  await store.kvSet(`form_issue:${chatId}:${job.id}`, JSON.stringify({ at: new Date().toISOString(), error: e.message }));
+  const email = applicationEmail(job.description);
+  const url = (await store.kvGet(`apply_url:${job.id}`)) ?? job.url;
+  const text = email
+    ? `Das Bewerbungsportal von ${job.company} (${e.host}) sperrt automatische Browser wie mich. Das umgehe ich nicht. Die Anzeige nennt aber ${email}: Begleitmail von oben, Anschreiben-PDF und Lebenslauf anhängen und abschicken, danach tipp auf den Knopf.`
+    : `Das Bewerbungsportal von ${job.company} (${e.host}) sperrt automatische Browser wie mich. Das umgehe ich nicht, deshalb kann ich dieses Formular nicht ausfüllen. Bewirb dich bitte direkt über den Link und häng die beiden PDFs an, danach tipp auf den Knopf.\n${url}`;
+  await tg('sendMessage', { chat_id: chatId, text, link_preview_options: { is_disabled: true }, reply_markup: { inline_keyboard: [[button('✅ Ich habe mich beworben', `ok:${ref}`)]] } });
+  return { ok: false, state: 'blocked', offen: [], captcha: true, note: `Portal sperrt automatische Browser (${e.kind}), Martin wurde informiert` };
 }
 
 async function startFormAttempt(store: Store, chatId: string, job: StoredJob, ref: string, extra = ''): Promise<FormResult | null> {
